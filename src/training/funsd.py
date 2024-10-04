@@ -156,6 +156,9 @@ def e2e(args):
                 # writer.add_image('train_images', train_grid, im_step)
                 # val_grid = torchvision.utils.make_grid(val_imgs)
                 # writer.add_image('val_images', val_grid, im_step)
+
+                # important!!! without this line the latter fold will cause CUDA out of memory !!!
+                torch.cuda.empty_cache()
     
     else:
         ################* SKIP TRAINING ################
