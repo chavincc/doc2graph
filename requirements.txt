@@ -1,13 +1,13 @@
 attrdict==2.0.1
 itsdangerous==2.0.1
-numpy>=1.22
+numpy==1.26.4
 Pillow>=9.1.1
 PyYAML==6.0
 scikit_learn==1.0.2
 setuptools==65.5.1
 setuptools_git_versioning==1.9.2
-spacy==3.3.0
-pydantic==1.8.2
+
+pydantic>=1.9.0
 python-dotenv==0.20.0
 gitpython>=3.1.30
 gitdb2==3.0.1
