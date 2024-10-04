@@ -214,7 +214,8 @@ def get_features(args : ArgumentParser) -> Tuple[str, str]:
 
 def compute_crossentropy_loss(scores : torch.Tensor, labels : torch.Tensor):
     w = class_weight.compute_class_weight(class_weight='balanced', classes= np.unique(labels.cpu().numpy()), y=labels.cpu().numpy())
-    return torch.nn.CrossEntropyLoss(weight=torch.tensor(w, dtype=torch.float32).to('cuda:0'))(scores, labels)
+    current_device = scores.device
+    return torch.nn.CrossEntropyLoss(weight=torch.tensor(w, dtype=torch.float32).to(current_device))(scores, labels)
 
 def compute_auc_mc(scores, labels):
     scores = scores.detach().cpu().numpy()
