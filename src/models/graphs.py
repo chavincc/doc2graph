@@ -161,7 +161,7 @@ class E2E(nn.Module):
 
         # Perform message passing
         m_hidden = self.projector.get_out_lenght()
-        self.message_passing = nn.ModuleList()
+        # self.message_passing = nn.ModuleList()
         # self.m_layers = m_layers
         # for l in range(m_layers):
         #     self.message_passing.append(GcnSAGELayer(m_hidden, m_hidden, F.relu, 0.))
