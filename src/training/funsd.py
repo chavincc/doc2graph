@@ -19,8 +19,7 @@ from src.utils import get_config
 from src.training.utils import *
 from src.data.graph_builder import GraphBuilder
 
-def e2e(args):
-
+def e2e(args):    
     # configs
     start_training = time.time()
     cfg_train = get_config('train')
@@ -159,6 +158,7 @@ def e2e(args):
 
                 # important!!! without this line the latter fold will cause CUDA out of memory !!!
                 torch.cuda.empty_cache()
+            break
     
     else:
         ################* SKIP TRAINING ################
