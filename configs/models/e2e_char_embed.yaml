@@ -1,0 +1,8 @@
+name: E2E_CHAR_EMBED
+dropout: 0.2
+hidden_dim: 300
+out_chunks: 300
+num_layers: 1
+doProject: True
+char_embedding_dim: 16
+lstm_hidden_dim: 32

@@ -1,11 +1,14 @@
 import torch
 import torch.nn as nn
 import dgl.function as fn
+from dgl import DGLGraph
 import math
 import torch.nn.functional as F
+from typing import List, Tuple
 
 from src.paths import CFGM
 from src.utils import get_config
+from src.models.char_embedding.model import CharEmbeddingModule
 
 class SetModel():
     def __init__(self, name='e2e', device = 'cpu'):
@@ -56,6 +59,22 @@ class SetModel():
         elif self.name == 'E2E':
             edge_pred_features = int((math.log2(get_config('preprocessing').FEATURES.num_polar_bins) + nodes)*2)
             m = E2E(nodes, edges, self.cfg_model.num_layers, self.cfg_model.dropout, chunks, self.cfg_model.out_chunks, self.cfg_model.hidden_dim, self.device,  edge_pred_features, self.cfg_model.doProject)
+
+        elif self.name == 'E2E_CHAR_EMBED':
+            edge_pred_features = int((math.log2(get_config('preprocessing').FEATURES.num_polar_bins) + nodes)*2)
+            m = E2ECharEmbed(
+                node_classes=nodes,
+                edge_classes=edges,
+                dropout=self.cfg_model.dropout,
+                in_chunks=chunks,
+                out_chunks=self.cfg_model.out_chunks,
+                hidden_dim=self.cfg_model.hidden_dim,
+                device=self.device,
+                edge_pred_features=edge_pred_features,
+                char_embedding_dim=self.cfg_model.char_embedding_dim,
+                lstm_hidden_dim=self.cfg_model.lstm_hidden_dim,
+                doProject=self.cfg_model.doProject
+            )
 
         else:
             raise Exception(f"Error! Model {self.name} do not exists.")
@@ -185,6 +204,71 @@ class E2E(nn.Module):
         n = self.node_pred(h)
         e = self.edge_pred(g, h, n)
         
+        return n, e
+    
+################
+###### E2ECharEmbed #####
+
+class E2ECharEmbed(nn.Module):
+    def __init__(
+        self,
+        node_classes: int, 
+        edge_classes: int, 
+        dropout: float, 
+        in_chunks: List[int], 
+        out_chunks: int, 
+        hidden_dim: int, 
+        device: torch.device,
+        edge_pred_features: int,
+        char_embedding_dim: int,
+        lstm_hidden_dim: int,
+        doProject: bool =True,
+    ):
+        super().__init__()
+
+        # char embed and distribution forward
+        self.char_embedding_module = CharEmbeddingModule(
+            char_embedding_dim=char_embedding_dim,
+            lstm_hidden_dim=lstm_hidden_dim,
+            device=device
+        )
+
+        # Project inputs into higher space
+        in_chunks = [lstm_hidden_dim] + in_chunks
+        self.projector = InputProjector(in_chunks, out_chunks, device, doProject)
+
+        # Perform message passing
+        m_hidden = self.projector.get_out_lenght()
+        self.message_passing = GcnSAGELayer(m_hidden, m_hidden, F.relu, 0.)
+
+        # Define edge predictor layer
+        self.edge_pred = MLPPredictor_E2E(m_hidden, hidden_dim, edge_classes, dropout,  edge_pred_features)
+
+        # Define node predictor layer
+        self.node_pred = nn.Sequential(
+            nn.Linear(m_hidden, node_classes),
+            nn.LayerNorm(node_classes)
+        )
+
+    def forward(
+        self,
+        g: DGLGraph,
+        h: torch.Tensor
+    ) -> Tuple[torch.tensor, torch.tensor]: # node tensor and edge tensor
+        # char embedding
+        texts = g.ndata['text']
+        text_features = self.char_embedding_module(texts) # Shape: [num_nodes, lstm_hidden_dim]
+
+        # Combine text_features with existing node features (if any)
+        if h is not None and h.shape[1] > 0:
+            h = torch.cat((text_features, h), dim=1)
+        else:
+            h = text_features
+
+        h = self.projector(h)
+        h = self.message_passing(g,h)
+        n = self.node_pred(h)
+        e = self.edge_pred(g, h, n)
         return n, e
 
 ################

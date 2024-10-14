@@ -269,6 +269,207 @@ def e2e(args):
         print("END TRAINING:", time.time() - start_training)
     return {'LINKS [MAX, MEAN, STD]': [classes_f1[1], mean(edges_f1), np.std(edges_f1)], 'NODES [MAX, MEAN, STD]': [micro, mean(nodes_micro), np.std(nodes_micro)]}
 
+def e2e_char_embed(args):
+    # configs
+    start_training = time.time()
+    cfg_train = get_config('train')
+    seed(cfg_train.seed)
+    device = get_device(args.gpu)
+    sm = SetModel(name=args.model, device=device)
+
+    if not args.test:
+        ################* STEP 0: LOAD DATA ################
+        data = Document2Graph(name='FUNSD TRAIN', src_path=FUNSD_TRAIN, device = device, output_dir=TRAIN_SAMPLES)
+        data.get_info()
+
+        ss = KFold(n_splits=10, shuffle=True, random_state=cfg_train.seed)
+        cv_indices = ss.split(data.graphs)
+        
+        models = []
+        train_index, val_index = next(ss.split(data.graphs))
+
+        for cvs in cv_indices:
+
+            train_index, val_index = cvs
+
+            # TRAIN
+            train_graphs = [data.graphs[i] for i in train_index]
+            tg = dgl.batch(train_graphs)
+            tg = tg.int().to(device)
+        
+            val_graphs = [data.graphs[i] for i in val_index]
+            vg = dgl.batch(val_graphs)
+            vg = vg.int().to(device)
+            
+            ################* STEP 1: CREATE MODEL ################
+            model = sm.get_model(data.node_num_classes, data.edge_num_classes, data.get_chunks())
+            optimizer = torch.optim.AdamW(model.parameters(), lr=float(cfg_train.lr), weight_decay=float(cfg_train.weight_decay))
+            e = datetime.now()
+            train_name = args.model + f'-{e.strftime("%Y%m%d-%H%M")}'
+            models.append(train_name+'.pt')
+            stopper = EarlyStopping(model, name=train_name, metric=cfg_train.stopper_metric, patience=2000)
+        
+            ################* STEP 2: TRAINING ################
+            print("\n### TRAINING ###")
+            print(f"-> Training samples: {tg.batch_size}")
+            print(f"-> Validation samples: {vg.batch_size}\n")
+
+            for epoch in range(cfg_train.epochs):
+                # TRAINING
+                model.train()
+                
+                n_scores, e_scores = model(tg, tg.ndata['feat'].to(device))
+                n_loss = compute_crossentropy_loss(n_scores.to(device), tg.ndata['label'].to(device))
+                e_loss = compute_crossentropy_loss(e_scores.to(device), tg.edata['label'].to(device))
+                tot_loss = n_loss + e_loss
+                macro, micro = get_f1(n_scores, tg.ndata['label'].to(device))
+                auc = compute_auc_mc(e_scores.to(device), tg.edata['label'].to(device))
+
+
+                optimizer.zero_grad()
+                tot_loss.backward()
+                n = torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1)
+                optimizer.step()
+
+                #* VALIDATION
+                model.eval()
+                with torch.no_grad():
+                    val_n_scores, val_e_scores = model(vg, vg.ndata['feat'].to(device))
+                    val_n_loss = compute_crossentropy_loss(val_n_scores.to(device), vg.ndata['label'].to(device))
+                    val_e_loss = compute_crossentropy_loss(val_e_scores.to(device), vg.edata['label'].to(device))
+                    val_tot_loss = val_n_loss + val_e_loss
+                    val_macro, _ = get_f1(val_n_scores, vg.ndata['label'].to(device))
+                    val_auc = compute_auc_mc(val_e_scores.to(device), vg.edata['label'].to(device))
+
+                #* PRINTING IMAGEs AND RESULTS
+                print("Epoch {:05d} | TrainLoss {:.4f} | TrainF1-MACRO {:.4f} | TrainAUC-PR {:.4f} | ValLoss {:.4f} | ValF1-MACRO {:.4f} | ValAUC-PR {:.4f} |"
+                .format(epoch, tot_loss.item(), macro, auc, val_tot_loss.item(), val_macro, val_auc))
+                
+                if cfg_train.stopper_metric == 'loss':
+                    step_value = val_tot_loss.item()
+                elif cfg_train.stopper_metric == 'acc':
+                    step_value = val_auc
+                
+                ss = stopper.step(step_value)
+
+                if ss == 'stop':
+                    break
+
+                # important!!! without this line the latter fold will cause CUDA out of memory !!!
+                torch.cuda.empty_cache()
+                break
+            break
+    
+    else:
+        ################* SKIP TRAINING ################
+        print("\n### SKIP TRAINING ###")
+        print(f"-> loading {args.weights}")
+        models = args.weights
+    
+    # ################* STEP 3: TESTING ################
+    # print("\n### TESTING ###")
+
+    # #? test
+    # test_data = Document2Graph(name='FUNSD TEST', src_path=FUNSD_TEST, device = device, output_dir=TEST_SAMPLES)
+    # test_data.get_info()
+    
+    # model = sm.get_model(test_data.node_num_classes, test_data.edge_num_classes, test_data.get_chunks())
+    # best_model = ''
+    # nodes_micro = []
+    # edges_f1 = []
+    # test_graph = dgl.batch(test_data.graphs).to(device)
+
+    # for m in models:
+    #     model.load_state_dict(torch.load(CHECKPOINTS / m))
+    #     model.eval()
+    #     with torch.no_grad():
+
+    #         n, e = model(test_graph, test_graph.ndata['feat'].to(device))
+    #         auc = compute_auc_mc(e.to(device), test_graph.edata['label'].to(device))
+    #         _, preds = torch.max(F.softmax(e, dim=1), dim=1)
+
+    #         accuracy, f1 = get_binary_accuracy_and_f1(preds, test_graph.edata['label'])
+    #         _, classes_f1 = get_binary_accuracy_and_f1(preds, test_graph.edata['label'], per_class=True)
+    #         edges_f1.append(classes_f1[1])
+
+    #         macro, micro = get_f1(n, test_graph.ndata['label'].to(device))
+    #         nodes_micro.append(micro)
+    #         if classes_f1[1] >= max(edges_f1):
+    #             best_model = m
+
+    #         test_graph.edata['preds'] = preds
+
+    #     ################* STEP 4: RESULTS ################
+    #     print("\n### RESULTS {} ###".format(m))
+    #     print("F1 Edges: None {:.4f} - Pairs {:.4f}".format(classes_f1[0], classes_f1[1]))
+    #     print("F1 Nodes: Macro {:.4f} - Micro {:.4f}".format(macro, micro))
+
+    # print(f"\n -> Loading best model {best_model}")
+    # model.load_state_dict(torch.load(CHECKPOINTS / best_model))
+    # model.eval()
+    # with torch.no_grad():
+
+    #     n, e = model(test_graph, test_graph.ndata['feat'].to(device))
+    #     auc = compute_auc_mc(e.to(device), test_graph.edata['label'].to(device))
+        
+    #     _, epreds = torch.max(F.softmax(e, dim=1), dim=1)
+    #     _, npreds = torch.max(F.softmax(n, dim=1), dim=1)
+    #     test_graph.edata['preds'] = epreds
+    #     test_graph.ndata['preds'] = npreds
+    #     test_graph.ndata['net'] = n
+
+    #     accuracy, f1 = get_binary_accuracy_and_f1(epreds, test_graph.edata['label'])
+    #     _, classes_f1 = get_binary_accuracy_and_f1(epreds, test_graph.edata['label'], per_class=True)
+    #     macro, micro = get_f1(n, test_graph.ndata['label'].to(device))
+
+    # # ################* STEP 4: RESULTS ################
+    # print("\n### BEST RESULTS ###")
+    # print("AUC {:.4f}".format(auc))
+    # print("Accuracy {:.4f}".format(accuracy))
+    # print("F1 Edges: Macro {:.4f} - Micro {:.4f}".format(f1[0], f1[1]))
+    # print("F1 Edges: None {:.4f} - Pairs {:.4f}".format(classes_f1[0], classes_f1[1]))
+    # print("F1 Nodes: Macro {:.4f} - Micro {:.4f}".format(macro, micro))
+
+    # print("\n### AVG RESULTS ###")
+    # print("Semantic Entity Labeling: MEAN ", mean(nodes_micro), " STD: ", np.std(nodes_micro))
+    # print("Entity Linking: MEAN ", mean(edges_f1),"STD", np.std(edges_f1))
+
+    # if not args.test:
+    #     feat_n, feat_e = get_features(args)
+    #     #? if skipping training, no need to save anything
+    #     model = get_config(CFGM / args.model)
+    #     results = {'MODEL': {
+    #         'name': sm.get_name(),
+    #         'weights': best_model,
+    #         'net-params': sm.get_total_params(), 
+    #         'num-layers': model.num_layers,
+    #         'projector-output': model.out_chunks,
+    #         'dropout': model.dropout,
+    #         'lastFC': model.hidden_dim
+    #         },
+    #         'FEATURES': {
+    #             'nodes': feat_n, 
+    #             'edges': feat_e
+    #         },
+    #         'PARAMS': {
+    #             'start-lr': cfg_train.lr,
+    #             'weight-decay': cfg_train.weight_decay,
+    #             'seed': cfg_train.seed
+    #         },
+    #         'RESULTS': {
+    #             'val-loss': stopper.best_score, 
+    #             'f1-scores': f1,
+	# 	        'f1-classes': classes_f1,
+    #             'nodes-f1': [macro, micro],
+    #             'std-pairs': np.std(edges_f1),
+    #             'mean-pairs': mean(edges_f1)
+    #         }}
+    #     save_test_results(train_name, results)
+    
+    #     print("END TRAINING:", time.time() - start_training)
+    # return {'LINKS [MAX, MEAN, STD]': [classes_f1[1], mean(edges_f1), np.std(edges_f1)], 'NODES [MAX, MEAN, STD]': [micro, mean(nodes_micro), np.std(nodes_micro)]}
+
+
 def entity_linking(args):
 
     # configs
@@ -491,9 +692,10 @@ def entity_linking(args):
     return {'best_model': best_model, 'Pairs-F1': {'max': max(pair_scores), 'mean': mean(pair_scores), 'std': np.std(pair_scores)}}
 
 def train_funsd(args):
-
     if args.model == 'e2e':
         e2e(args)
+    elif args.model == 'e2e_char_embed':
+        e2e_char_embed(args)
     elif args.model == 'edge':
         entity_linking(args)
     else:
