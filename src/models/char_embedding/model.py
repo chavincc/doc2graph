@@ -26,7 +26,7 @@ class CharEmbeddingModule(nn.Module):
         padding_idx: int = len(DEFAULT_CHAR_TO_IDX)-1,
     ):
         super(CharEmbeddingModule, self).__init__()
-        self.char_to_idx = dict
+        self.char_to_idx = char_to_idx
         self.char_embedding_dim = char_embedding_dim
         self.lstm_hidden_dim = lstm_hidden_dim
         self.device = device
@@ -34,7 +34,7 @@ class CharEmbeddingModule(nn.Module):
         self.padding_idx = padding_idx
 
         self.vocab_size = len(char_to_idx)
-        self.char_embiddings = nn.Embedding(
+        self.char_embeddings = nn.Embedding(
             num_embeddings=self.vocab_size,
             embedding_dim=self.char_embedding_dim,
             padding_idx=self.padding_idx
@@ -45,7 +45,7 @@ class CharEmbeddingModule(nn.Module):
             batch_first=True
         )
 
-    def forward(self, texts: List[str]):
+    def forward(self, texts: List[str]) -> torch.Tensor:
         # encode input as configured
         encoded_texts = [encode_string(text) for text in texts]
 

@@ -242,7 +242,7 @@ class E2ECharEmbed(nn.Module):
         self.message_passing = GcnSAGELayer(m_hidden, m_hidden, F.relu, 0.)
 
         # Define edge predictor layer
-        self.edge_pred = MLPPredictor_E2E(m_hidden, hidden_dim, edge_classes, dropout,  edge_pred_features)
+        self.edge_pred = MLPPredictor_E2E(m_hidden, hidden_dim, edge_classes, dropout, edge_pred_features)
 
         # Define node predictor layer
         self.node_pred = nn.Sequential(
@@ -253,11 +253,11 @@ class E2ECharEmbed(nn.Module):
     def forward(
         self,
         g: DGLGraph,
-        h: torch.Tensor
+        h: torch.Tensor,
+        texts: List[str], # dimension = [g.number_of_nodes()]
     ) -> Tuple[torch.tensor, torch.tensor]: # node tensor and edge tensor
         # char embedding
-        texts = g.ndata['text']
-        text_features = self.char_embedding_module(texts) # Shape: [num_nodes, lstm_hidden_dim]
+        text_features: torch.Tensor = self.char_embedding_module(texts) # Shape: [num_nodes, lstm_hidden_dim]
 
         # Combine text_features with existing node features (if any)
         if h is not None and h.shape[1] > 0:
