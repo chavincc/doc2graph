@@ -78,6 +78,22 @@ class CharEmbeddingModule(nn.Module):
         else:
             raise ValueError("Invalid aggregation_method. Choose value from AggregatorMethod enum.")
 
+    def __repr__(self):
+        repr_string = "CharEmbeddingModule(\n"
+
+        repr_string += f"  use_embedding={self.use_embedding},\n"
+        repr_string += f"  aggregation_method={self.aggregation_method},\n"
+
+        if self.use_embedding:
+            repr_string += f"  char_embedding_dim={self.char_embedding_dim},\n"
+        if self.aggregation_method in [AggregatorMethod.LSTM, AggregatorMethod.BILSTM]:
+            repr_string += f"  lstm_hidden_dim={self.lstm_hidden_dim},\n"
+            repr_string += f"  num_lstm_layer={self.num_lstm_layer},\n"
+
+        repr_string += ")"
+
+        return repr_string
+
     def preprocess(
         self,
         texts: List[str]
