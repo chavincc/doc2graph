@@ -1,8 +1,14 @@
 name: E2E_CHAR_EMBED
+# Doc2Graph NE & PE config
 dropout: 0.2
 hidden_dim: 300
 out_chunks: 300
 num_layers: 1
 doProject: True
-char_embedding_dim: 16
-lstm_hidden_dim: 32
+# CharEmbeddingModule config
+use_embedding: True
+aggregation_method: "LSTM" # "AVG" | "LSTM" | "BILSTM"
+# --- CharEmbeddingModule mode-specific config
+char_embedding_dim: 19
+lstm_hidden_dim: 41
+num_lstm_layer: 2

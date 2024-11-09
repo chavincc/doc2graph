@@ -8,7 +8,7 @@ from typing import List, Tuple
 
 from src.paths import CFGM
 from src.utils import get_config
-from src.models.char_embedding.model import CharEmbeddingModule
+from src.models.char_embedding.model import CharEmbeddingModule, AggregatorMethod
 
 class SetModel():
     def __init__(self, name='e2e', device = 'cpu'):
@@ -71,8 +71,11 @@ class SetModel():
                 hidden_dim=self.cfg_model.hidden_dim,
                 device=self.device,
                 edge_pred_features=edge_pred_features,
+                use_embedding=self.cfg_model.use_embedding,
+                aggregation_method=AggregatorMethod[self.cfg_model.aggregation_method],
                 char_embedding_dim=self.cfg_model.char_embedding_dim,
                 lstm_hidden_dim=self.cfg_model.lstm_hidden_dim,
+                num_lstm_layer=self.cfg_model.num_lstm_layer,
                 doProject=self.cfg_model.doProject
             )
 
@@ -220,16 +223,22 @@ class E2ECharEmbed(nn.Module):
         hidden_dim: int, 
         device: torch.device,
         edge_pred_features: int,
+        use_embedding: bool,
+        aggregation_method: AggregatorMethod,
         char_embedding_dim: int,
         lstm_hidden_dim: int,
+        num_lstm_layer: int,
         doProject: bool =True,
     ):
         super().__init__()
 
         # char embed and distribution forward
         self.char_embedding_module = CharEmbeddingModule(
+            use_embedding=use_embedding,
+            aggregation_method=aggregation_method,
             char_embedding_dim=char_embedding_dim,
             lstm_hidden_dim=lstm_hidden_dim,
+            num_lstm_layer=num_lstm_layer,
             device=device
         )
 
