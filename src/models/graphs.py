@@ -266,7 +266,8 @@ class E2ECharEmbed(nn.Module):
         texts: List[str], # dimension = [g.number_of_nodes()]
     ) -> Tuple[torch.tensor, torch.tensor]: # node tensor and edge tensor
         # char embedding
-        text_features: torch.Tensor = self.char_embedding_module(texts) # Shape: [num_nodes, lstm_hidden_dim]
+        preprocessed_tensor, seq_lengths = self.char_embedding_module.preprocess(texts)
+        text_features: torch.Tensor = self.char_embedding_module.forward(preprocessed_tensor, seq_lengths)
 
         # Combine text_features with existing node features (if any)
         if h is not None and h.shape[1] > 0:
