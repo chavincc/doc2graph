@@ -435,6 +435,7 @@ def e2e_char_embed(args):
     
     model = sm.get_model(test_data.node_num_classes, test_data.edge_num_classes, test_data.get_chunks())
     best_model = ''
+    best_result = {}
     nodes_micro = []
     edges_f1 = []
 
@@ -454,6 +455,12 @@ def e2e_char_embed(args):
     for m in models:
         model.load_state_dict(torch.load(CHECKPOINTS / m))
         model.eval()
+
+        all_edge_scores = [] # for computing AUC
+        all_edge_preds = []
+        all_edge_labels = []
+        all_node_preds = []
+        all_node_labels = []
         with torch.no_grad():
             for batched_graph, batched_texts in test_dataloader:
                 batched_graph = batched_graph.to(device)
@@ -461,56 +468,58 @@ def e2e_char_embed(args):
                 batched_graph.ndata['label'] = batched_graph.ndata['label'].to(device)
                 batched_graph.edata['label'] = batched_graph.edata['label'].to(device)
 
-                test_n_scores, test_e_scores = model(batched_graph, batched_graph.ndata['feat'], batched_texts)
+                n_scores, e_scores = model(batched_graph, batched_graph.ndata['feat'], batched_texts)
 
-                e_score_softmax = F.softmax(test_e_scores, dim=1)
-                _, preds = torch.max(e_score_softmax, dim=1)
+                e_scores_softmax = F.softmax(e_scores, dim=1)
+                edge_preds = e_scores_softmax.argmax(dim=1)
+                node_preds = n_scores.argmax(dim=1)
 
-                auc: float = compute_auc_mc(test_e_scores, batched_graph.edata['label'])
-                accuracy, f1 = get_binary_accuracy_and_f1(preds, batched_graph.edata['label'])
-                _, classes_f1 = get_binary_accuracy_and_f1(preds, batched_graph.edata['label'], per_class=True)
-                edges_f1.append(classes_f1[1])  # Assuming index 1 corresponds to the positive class
+                all_edge_scores.append(e_scores.cpu())
+                all_edge_preds.append(edge_preds.cpu())
+                all_edge_labels.append(batched_graph.edata['label'].cpu())
+                all_node_preds.append(node_preds.cpu())
+                all_node_labels.append(batched_graph.ndata['label'].cpu())
 
-                macro, micro = get_f1(n_scores, batched_graph.ndata['label'])
-                nodes_micro.append(micro)
+        all_edge_scores = torch.cat(all_edge_scores)
+        all_edge_preds = torch.cat(all_edge_preds)
+        all_edge_labels = torch.cat(all_edge_labels)
+        all_node_preds = torch.cat(all_node_preds)
+        all_node_labels = torch.cat(all_node_labels)
 
-                if classes_f1[1] >= max(edges_f1):
-                    best_model = m
+        auc = compute_auc_mc(all_edge_scores, all_edge_labels)
 
-                batched_graph.edata['preds'] = preds
+        edge_accuracy, edge_f1 = get_binary_accuracy_and_f1(all_edge_preds, all_edge_labels)
+        _, edge_classes_f1 = get_binary_accuracy_and_f1(all_edge_preds, all_edge_labels, per_class=True)
+        current_edge_f1 = edge_classes_f1[1]  # Positive class F1 score
+        edges_f1.append(current_edge_f1)
+
+        node_macro_f1, node_micro_f1 = get_f1(all_node_preds, all_node_labels)
+        nodes_micro.append(node_micro_f1)
+
+        if current_edge_f1 >= max(edges_f1):
+            best_model = m
+            best_result = {
+                'auc': auc,
+                'edge_accuracy': edge_accuracy,
+                'edge_f1': edge_f1,
+                'edge_classes_f1': edge_classes_f1,
+                'node_macro_f1': node_macro_f1,
+                'node_micro_f1': node_micro_f1
+            }
 
         ################* STEP 4: RESULTS ################
         print("\n### RESULTS {} ###".format(m))
-        print("F1 Edges: None {:.4f} - Pairs {:.4f}".format(classes_f1[0], classes_f1[1]))
+        print("F1 Edges: None {:.4f} - Pairs {:.4f}".format(edge_classes_f1[0], edge_classes_f1[1]))
         print("F1 Nodes: Macro {:.4f} - Micro {:.4f}".format(macro, micro))
 
     print(f"\n -> Loading best model {best_model}")
-    model.load_state_dict(torch.load(CHECKPOINTS / best_model))
-    model.eval()
-    with torch.no_grad():
-
-        # TODO: batched best model test ...
-        pass
-        # n, e = model(test_graph, test_graph.ndata['feat'].to(device), test_graph_texts)
-        # auc = compute_auc_mc(e.to(device), test_graph.edata['label'].to(device))
-        
-        # _, epreds = torch.max(F.softmax(e, dim=1), dim=1)
-        # _, npreds = torch.max(F.softmax(n, dim=1), dim=1)
-        # test_graph.edata['preds'] = epreds
-        # test_graph.ndata['preds'] = npreds
-        # test_graph.ndata['net'] = n
-
-        # accuracy, f1 = get_binary_accuracy_and_f1(epreds, test_graph.edata['label'])
-        # _, classes_f1 = get_binary_accuracy_and_f1(epreds, test_graph.edata['label'], per_class=True)
-        # macro, micro = get_f1(n, test_graph.ndata['label'].to(device))
-
     # ################* STEP 4: RESULTS ################
     print("\n### BEST RESULTS ###")
-    print("AUC {:.4f}".format(auc))
-    print("Accuracy {:.4f}".format(accuracy))
-    print("F1 Edges: Macro {:.4f} - Micro {:.4f}".format(f1[0], f1[1]))
-    print("F1 Edges: None {:.4f} - Pairs {:.4f}".format(classes_f1[0], classes_f1[1]))
-    print("F1 Nodes: Macro {:.4f} - Micro {:.4f}".format(macro, micro))
+    print("AUC {:.4f}".format(best_result['auc']))
+    print("Accuracy {:.4f}".format(best_result['edge_accuracy']))
+    print("F1 Edges: Macro {:.4f} - Micro {:.4f}".format(best_result['edge_f1'][0], best_result['edge_f1'][1]))
+    print("F1 Edges: None {:.4f} - Pairs {:.4f}".format(best_result['edge_classes_f1'][0], best_result['edge_classes_f1'][1]))
+    print("F1 Nodes: Macro {:.4f} - Micro {:.4f}".format(best_result['node_macro_f1'], best_result['node_micro_f1']))
 
     print("\n### AVG RESULTS ###")
     print("Semantic Entity Labeling: MEAN ", mean(nodes_micro), " STD: ", np.std(nodes_micro))
@@ -518,16 +527,21 @@ def e2e_char_embed(args):
 
     if not args.test:
         feat_n, feat_e = get_features(args)
-        #? if skipping training, no need to save anything
-        model = get_config(CFGM / args.model)
-        results = {'MODEL': {
-            'name': sm.get_name(),
-            'weights': best_model,
-            'net-params': sm.get_total_params(), 
-            'num-layers': model.num_layers,
-            'projector-output': model.out_chunks,
-            'dropout': model.dropout,
-            'lastFC': model.hidden_dim
+        model_cfg = get_config(CFGM / args.model)
+        results = {
+            'MODEL': {
+                'name': sm.get_name(),
+                'weights': best_model,
+                'net-params': sm.get_total_params(), 
+                'num-layers': model_cfg.num_layers,
+                'projector-output': model_cfg.out_chunks,
+                'dropout': model_cfg.dropout,
+                'lastFC': model_cfg.hidden_dim,
+                'use_embedding': model_cfg.use_embedding,
+                'aggregation_method': model_cfg.aggregation_method,
+                'char_embedding_dim': model_cfg.char_embedding_dim,
+                'lstm_hidden_dim': model_cfg.lstm_hidden_dim,
+                'num_lstm_layer': model_cfg.num_lstm_layer
             },
             'FEATURES': {
                 'nodes': feat_n, 
@@ -540,16 +554,16 @@ def e2e_char_embed(args):
             },
             'RESULTS': {
                 'val-loss': stopper.best_score, 
-                'f1-scores': f1,
-		        'f1-classes': classes_f1,
-                'nodes-f1': [macro, micro],
+                'f1-scores': best_result['edge_f1'],
+		        'f1-classes': best_result['edge_classes_f1'],
+                'nodes-f1': [best_result['node_macro_f1'], best_result['node_micro_f1']],
                 'std-pairs': np.std(edges_f1),
                 'mean-pairs': mean(edges_f1)
             }}
         save_test_results(train_name, results)
     
         print("END TRAINING:", time.time() - start_training)
-    return {'LINKS [MAX, MEAN, STD]': [classes_f1[1], mean(edges_f1), np.std(edges_f1)], 'NODES [MAX, MEAN, STD]': [micro, mean(nodes_micro), np.std(nodes_micro)]}
+    return {'LINKS [MAX, MEAN, STD]': [best_result['edge_classes_f1'][1], mean(edges_f1), np.std(edges_f1)], 'NODES [MAX, MEAN, STD]': [best_result['node_micro_f1'], mean(nodes_micro), np.std(nodes_micro)]}
 
 
 def entity_linking(args):
