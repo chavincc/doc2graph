@@ -1,6 +1,7 @@
 import unittest
 import torch
 import numpy as np
+import copy
 
 from src.models.char_embedding.model import CharEmbeddingModule, AggregatorMethod
 
@@ -272,6 +273,61 @@ class TestCharEmbeddingModule(unittest.TestCase):
         self.assertEqual(
             list(preprocessed_tensor.shape),
             [BATCH_SIZE, MAX_SEQ_LENGTH, char_dist_module.vocab_size]
+        )
+
+    def test_empty_string(self):
+        dummy_texts_with_empty = copy.deepcopy(self.dummy_texts)
+        dummy_texts_with_empty.append('')
+        BATCH_SIZE = len(dummy_texts_with_empty)
+        LSTM_HIDDEN_DIM = 4
+
+        # assert average mode handle empty string
+        hist_module = CharEmbeddingModule(
+            use_embedding=False,
+            aggregation_method=AggregatorMethod.AVG
+        )
+        preprocessed_tensor, seq_lengths = hist_module.preprocess(dummy_texts_with_empty)
+        self.assertEqual(1, seq_lengths.tolist()[-1])
+        out = hist_module(preprocessed_tensor, seq_lengths)
+        self.assertEqual(
+            list(out.shape),
+            [BATCH_SIZE, hist_module.output_dim]
+        )
+        self.assertEqual(
+            out[-1].int().tolist(),
+            [0, 0, 0, 0]
+        )
+
+        # assert use_embedding=True handle empty string
+        embedding_dist_module = CharEmbeddingModule(
+            use_embedding=True,
+            aggregation_method=AggregatorMethod.LSTM,
+            lstm_hidden_dim=LSTM_HIDDEN_DIM
+        )
+        preprocessed_tensor, seq_lengths = embedding_dist_module.preprocess(dummy_texts_with_empty)
+        self.assertEqual(1, seq_lengths.tolist()[-1])
+        out = embedding_dist_module(preprocessed_tensor, seq_lengths)
+        self.assertEqual(
+            list(out.shape),
+            [BATCH_SIZE, LSTM_HIDDEN_DIM]
+        )
+
+        # assert use_embedding=False handle empty string
+        char_dist_module = CharEmbeddingModule(
+            use_embedding=False,
+            aggregation_method=AggregatorMethod.LSTM,
+            lstm_hidden_dim=LSTM_HIDDEN_DIM
+        )
+        preprocessed_tensor, seq_lengths = char_dist_module.preprocess(dummy_texts_with_empty)
+        self.assertEqual(1, seq_lengths.tolist()[-1])
+        self.assertEqual(
+            preprocessed_tensor.int().tolist()[-1][0],
+            [0, 0, 0, 0, 1]
+        )
+        out = char_dist_module(preprocessed_tensor, seq_lengths)
+        self.assertEqual(
+            list(out.shape),
+            [BATCH_SIZE, LSTM_HIDDEN_DIM]
         )
 
 

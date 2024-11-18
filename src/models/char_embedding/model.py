@@ -32,7 +32,6 @@ class CharEmbeddingModule(nn.Module):
         # ---------------------------
         device: torch.device = 'cpu',
         char_to_idx: dict = DEFAULT_CHAR_TO_IDX,
-        unknown_idx: int = len(DEFAULT_CHAR_TO_IDX)-2,
         padding_idx: int = len(DEFAULT_CHAR_TO_IDX)-1,
         max_seq_length:int = 256
     ):
@@ -44,7 +43,6 @@ class CharEmbeddingModule(nn.Module):
         self.num_lstm_layer = num_lstm_layer
         self.device = device
         self.char_to_idx = char_to_idx
-        self.unknown_idx = unknown_idx
         self.padding_idx = padding_idx
         self.max_seq_length = max_seq_length
 
@@ -102,18 +100,30 @@ class CharEmbeddingModule(nn.Module):
         # ex: ["he llo.", "AB-33"] -> ["AA AAAP", "AASNN"]
         encoded_texts = [encode_string(text) for text in texts]
         
-        true_seq_lengths = torch.tensor([min(len(s), self.max_seq_length) for s in encoded_texts])
+        # true_seq_lengths processing for efficient torch rnn pack_sequence
+        # empty string length is 1 as it will be processed as 1 padding token
+        # non-empty string will be trimmed to max_seq_length
+        true_seq_lengths = []
+        for text in encoded_texts:
+            if len(text) == 0:
+                true_len = 1
+            else:
+                true_len = min(len(text), self.max_seq_length)
+            true_seq_lengths.append(true_len)
+        true_seq_lengths = torch.tensor(true_seq_lengths)
 
         # convert encoded char to index for model compatibility
         # ex: ["AA AAAP", "AASNN"] -> [[0,0,4,0,0,0,2], [0,0,2,1,1]]
+        # for empty string, treat as 1 padding token
         sequences: List[torch.Tensor] = []
         for text in encoded_texts:
-            indices = []
-            for char in text[:self.max_seq_length]:
-                if char in self.char_to_idx:
-                    indices.append(self.char_to_idx[char])
-                else:
-                    indices.append(self.unknown_idx)
+            if text == "":
+                indices = [self.padding_idx]
+            else:
+                indices = []
+                for char in text[:self.max_seq_length]:
+                    if char in self.char_to_idx:
+                        indices.append(self.char_to_idx[char])
             encoded_idx_tensor = torch.tensor(indices, dtype=torch.long)
             sequences.append(encoded_idx_tensor)
 
