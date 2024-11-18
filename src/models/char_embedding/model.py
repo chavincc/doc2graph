@@ -10,11 +10,9 @@ from .encoding import encode_string
 DEFAULT_CHAR_TO_IDX = {
     'A': 0,
     'N': 1,
-    'P': 2,
-    'S': 3,
-    ' ': 4,
-    '<UNK>': 5,
-    '<PAD>': 6
+    'S': 2,
+    ' ': 3,
+    '<PAD>': 4
 }
 
 class AggregatorMethod(Enum):

@@ -76,16 +76,16 @@ class TestCharEmbeddingModule(unittest.TestCase):
         self.assertEqual(
             preprocessed_tensor[0, :self.dummy_texts_len[0], :].int().tolist(),
             [
-                [1, 0, 0, 0, 0, 0, 0],
-                [1, 0, 0, 0, 0, 0, 0],
-                [1, 0, 0, 0, 0, 0, 0],
-                [0, 0, 1, 0, 0, 0, 0],
-                [1, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 1, 0, 0],
-                [0, 1, 0, 0, 0, 0, 0],
-                [0, 1, 0, 0, 0, 0, 0],
-                [0, 1, 0, 0, 0, 0, 0],
-                [0, 1, 0, 0, 0, 0, 0]
+                [1, 0, 0, 0, 0],
+                [1, 0, 0, 0, 0],
+                [1, 0, 0, 0, 0],
+                [0, 0, 1, 0, 0],
+                [1, 0, 0, 0, 0],
+                [0, 0, 0, 1, 0],
+                [0, 1, 0, 0, 0],
+                [0, 1, 0, 0, 0], 
+                [0, 1, 0, 0, 0],
+                [0, 1, 0, 0, 0]
             ]
         )
 
@@ -128,11 +128,11 @@ class TestCharEmbeddingModule(unittest.TestCase):
         # assert test case output
         np.testing.assert_almost_equal(
             avg_out[0].tolist(),
-            [0.4, 0.4, 0.1, 0.0, 0.1, 0.0]
+            [0.4, 0.4, 0.1, 0.1]
         )
         np.testing.assert_almost_equal(
             avg_out[1].tolist(),
-            [0.0, 0.0, 1.0, 0.0, 0.0, 0.0]
+            [0.0, 0.0, 1.0, 0.0]
         )
 
     def test_forward_average_embedding(self):

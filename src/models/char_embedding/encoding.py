@@ -1,22 +1,18 @@
-import unicodedata
 from typing import Callable
 
 
-def is_letter(c):
-    return unicodedata.category(c).startswith('L')
-def is_number(c):
-    return unicodedata.category(c).startswith('N')
-def is_punctuation(c):
-    return unicodedata.category(c).startswith('P')
+def is_alphabet(c):
+    return c.isalpha()
+def is_digit(c):
+    return c.isdigit()
 def is_symbol(c):
-    return unicodedata.category(c).startswith('S')
+    return not (c.isalpha() or c.isdigit() or c.isspace())
 def is_space(c):
     return c.isspace()
 
 DEFAULT_MAPPING = [
-    (is_letter, 'A'),
-    (is_number, 'N'),
-    (is_punctuation, 'P'),
+    (is_alphabet, 'A'),
+    (is_digit, 'N'),
     (is_symbol, 'S'),
     (is_space, ' '),
 ]
