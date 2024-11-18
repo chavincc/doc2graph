@@ -34,6 +34,7 @@ class CharEmbeddingModule(nn.Module):
         char_to_idx: dict = DEFAULT_CHAR_TO_IDX,
         unknown_idx: int = len(DEFAULT_CHAR_TO_IDX)-2,
         padding_idx: int = len(DEFAULT_CHAR_TO_IDX)-1,
+        max_seq_length:int = 256
     ):
         super(CharEmbeddingModule, self).__init__()
         self.use_embedding = use_embedding
@@ -45,6 +46,7 @@ class CharEmbeddingModule(nn.Module):
         self.char_to_idx = char_to_idx
         self.unknown_idx = unknown_idx
         self.padding_idx = padding_idx
+        self.max_seq_length = max_seq_length
 
         self.vocab_size = len(char_to_idx)
         self.bidirectional = (self.aggregation_method == AggregatorMethod.BILSTM)
@@ -100,14 +102,14 @@ class CharEmbeddingModule(nn.Module):
         # ex: ["he llo.", "AB-33"] -> ["AA AAAP", "AASNN"]
         encoded_texts = [encode_string(text) for text in texts]
         
-        true_seq_lengths = torch.tensor([len(s) for s in encoded_texts])
+        true_seq_lengths = torch.tensor([min(len(s), self.max_seq_length) for s in encoded_texts])
 
         # convert encoded char to index for model compatibility
         # ex: ["AA AAAP", "AASNN"] -> [[0,0,4,0,0,0,2], [0,0,2,1,1]]
         sequences: List[torch.Tensor] = []
         for text in encoded_texts:
             indices = []
-            for char in text:
+            for char in text[:self.max_seq_length]:
                 if char in self.char_to_idx:
                     indices.append(self.char_to_idx[char])
                 else:

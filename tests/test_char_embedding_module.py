@@ -238,6 +238,42 @@ class TestCharEmbeddingModule(unittest.TestCase):
         # assert hidden state randomness (have many unique values)
         self.assertTrue(torch.unique(lstm_out).shape[0] >= 2)
 
+    def test_max_seq_length(self):
+        MAX_SEQ_LENGTH = 10
+        BATCH_SIZE = len(self.dummy_texts)
+
+        # assert use_embedding=True seq is trimmed
+        embedding_dist_module = CharEmbeddingModule(
+            use_embedding=True,
+            aggregation_method=AggregatorMethod.LSTM,
+            max_seq_length=MAX_SEQ_LENGTH
+        )
+        preprocessed_tensor, seq_lengths = embedding_dist_module.preprocess(self.dummy_texts)
+        self.assertEqual(
+            seq_lengths.int().tolist(),
+            [10, 1, 10, 10]
+        )
+        self.assertEqual(
+            list(preprocessed_tensor.shape),
+            [BATCH_SIZE, MAX_SEQ_LENGTH]
+        )
+
+        # assert use_embedding=False seq is trimmed
+        char_dist_module = CharEmbeddingModule(
+            use_embedding=False,
+            aggregation_method=AggregatorMethod.LSTM,
+            max_seq_length=MAX_SEQ_LENGTH
+        )
+        preprocessed_tensor, seq_lengths = char_dist_module.preprocess(self.dummy_texts)
+        self.assertEqual(
+            seq_lengths.int().tolist(),
+            [10, 1, 10, 10]
+        )
+        self.assertEqual(
+            list(preprocessed_tensor.shape),
+            [BATCH_SIZE, MAX_SEQ_LENGTH, char_dist_module.vocab_size]
+        )
+
 
 if __name__ == '__main__':
     unittest.main()
