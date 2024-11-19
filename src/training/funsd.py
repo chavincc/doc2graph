@@ -418,7 +418,7 @@ def e2e_char_embed(args):
             torch.cuda.empty_cache()
 
             # temporary 1-fold training for param tuning
-            break
+            # break
     
     else:
         ################* SKIP TRAINING ################
@@ -459,6 +459,7 @@ def e2e_char_embed(args):
         all_edge_scores = [] # for computing AUC
         all_edge_preds = []
         all_edge_labels = []
+        all_node_scores = []
         all_node_preds = []
         all_node_labels = []
         with torch.no_grad():
@@ -477,12 +478,14 @@ def e2e_char_embed(args):
                 all_edge_scores.append(e_scores.cpu())
                 all_edge_preds.append(edge_preds.cpu())
                 all_edge_labels.append(batched_graph.edata['label'].cpu())
+                all_node_scores.append(n_scores.cpu())
                 all_node_preds.append(node_preds.cpu())
                 all_node_labels.append(batched_graph.ndata['label'].cpu())
 
         all_edge_scores = torch.cat(all_edge_scores)
         all_edge_preds = torch.cat(all_edge_preds)
         all_edge_labels = torch.cat(all_edge_labels)
+        all_node_scores = torch.cat(all_node_scores)
         all_node_preds = torch.cat(all_node_preds)
         all_node_labels = torch.cat(all_node_labels)
 
@@ -493,7 +496,7 @@ def e2e_char_embed(args):
         current_edge_f1 = edge_classes_f1[1]  # Positive class F1 score
         edges_f1.append(current_edge_f1)
 
-        node_macro_f1, node_micro_f1 = get_f1(all_node_preds, all_node_labels)
+        node_macro_f1, node_micro_f1 = get_f1(all_node_scores, all_node_labels)
         nodes_micro.append(node_micro_f1)
 
         if current_edge_f1 >= max(edges_f1):
@@ -510,7 +513,7 @@ def e2e_char_embed(args):
         ################* STEP 4: RESULTS ################
         print("\n### RESULTS {} ###".format(m))
         print("F1 Edges: None {:.4f} - Pairs {:.4f}".format(edge_classes_f1[0], edge_classes_f1[1]))
-        print("F1 Nodes: Macro {:.4f} - Micro {:.4f}".format(macro, micro))
+        print("F1 Nodes: Macro {:.4f} - Micro {:.4f}".format(node_macro_f1, node_micro_f1))
 
     print(f"\n -> Loading best model {best_model}")
     # ################* STEP 4: RESULTS ################
