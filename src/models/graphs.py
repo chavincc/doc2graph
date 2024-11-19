@@ -76,9 +76,9 @@ class SetModel():
                 char_embedding_dim=self.cfg_model.char_embedding_dim,
                 lstm_hidden_dim=self.cfg_model.lstm_hidden_dim,
                 num_lstm_layer=self.cfg_model.num_lstm_layer,
+                max_seq_length=self.cfg_model.max_seq_length,
                 doProject=self.cfg_model.doProject
             )
-
         else:
             raise Exception(f"Error! Model {self.name} do not exists.")
         
@@ -228,6 +228,7 @@ class E2ECharEmbed(nn.Module):
         char_embedding_dim: int,
         lstm_hidden_dim: int,
         num_lstm_layer: int,
+        max_seq_length: int,
         doProject: bool =True,
     ):
         super().__init__()
@@ -239,6 +240,7 @@ class E2ECharEmbed(nn.Module):
             char_embedding_dim=char_embedding_dim,
             lstm_hidden_dim=lstm_hidden_dim,
             num_lstm_layer=num_lstm_layer,
+            max_seq_length=max_seq_length,
             device=device
         )
 
