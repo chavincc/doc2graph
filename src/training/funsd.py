@@ -544,7 +544,8 @@ def e2e_char_embed(args):
                 'aggregation_method': model_cfg.aggregation_method,
                 'char_embedding_dim': model_cfg.char_embedding_dim,
                 'lstm_hidden_dim': model_cfg.lstm_hidden_dim,
-                'num_lstm_layer': model_cfg.num_lstm_layer
+                'num_lstm_layer': model_cfg.num_lstm_layer,
+                'max_seq_length': model_cfg.max_seq_length
             },
             'FEATURES': {
                 'nodes': feat_n, 
