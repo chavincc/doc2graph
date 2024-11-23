@@ -326,6 +326,8 @@ def e2e_char_embed(args):
             train_name = args.model + f'-{e.strftime("%Y%m%d-%H%M")}'
             models.append(train_name+'.pt')
             stopper = EarlyStopping(model, name=train_name, metric=cfg_train.stopper_metric, patience=cfg_train.stopper_patience)
+
+            writer = SummaryWriter(log_dir=RUNS)
         
             ################* STEP 2: TRAINING ################
             print("\n### TRAINING ###")
@@ -412,13 +414,20 @@ def e2e_char_embed(args):
                 if ss == 'stop':
                     break
 
+                writer.add_scalars('AUC-PR', {'train': avg_auc, 'val': val_auc_avg}, epoch)
+                writer.add_scalars('LOSS', {'train': avg_loss, 'val': val_tot_loss}, epoch)
+                writer.add_scalar('LR', optimizer.param_groups[0]['lr'], epoch)
+
             # clear gpu memory (experimental)
             del train_graphs, train_texts, val_graphs, val_texts, model, optimizer
             gc.collect()
             torch.cuda.empty_cache()
 
+            # close writer
+            writer.close()
+
             # temporary 1-fold training for param tuning
-            # break
+            break
     
     else:
         ################* SKIP TRAINING ################
