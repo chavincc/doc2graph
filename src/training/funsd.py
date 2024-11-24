@@ -280,6 +280,9 @@ def e2e_char_embed(args):
     device = get_device(args.gpu)
     sm = SetModel(name=args.model, device=device)
 
+    # for test result logging. loaded first to prevent file change when training multiple instances.
+    model_cfg = get_config(CFGM / args.model)
+
     if not args.test:
         ################* STEP 0: LOAD DATA ################
         data = Document2Graph(name='FUNSD TRAIN', src_path=FUNSD_TRAIN, device = device, output_dir=TRAIN_SAMPLES)
@@ -539,7 +542,6 @@ def e2e_char_embed(args):
 
     if not args.test:
         feat_n, feat_e = get_features(args)
-        model_cfg = get_config(CFGM / args.model)
         results = {
             'MODEL': {
                 'name': sm.get_name(),
