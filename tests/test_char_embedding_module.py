@@ -11,6 +11,7 @@ class TestCharEmbeddingModule(unittest.TestCase):
         self.dummy_texts = ['aBC.d 1234', '/', '22/08 11:02', 'A medium length sentence with alphabet.']
         self.dummy_texts_len = [len(s) for s in self.dummy_texts]
         self.max_dummy_len = max(self.dummy_texts_len)
+        self.gpu_device = 'cuda:1'
 
     def test_init_simple(self):
         hist_module = CharEmbeddingModule(
@@ -159,6 +160,18 @@ class TestCharEmbeddingModule(unittest.TestCase):
             one_char_avg_output.squeeze(0).tolist()
         )
 
+        # GPU test
+        embedding_avg_module_gpu = CharEmbeddingModule(
+            use_embedding=True,
+            aggregation_method=AggregatorMethod.AVG,
+            char_embedding_dim=EMBEDDING_DIM,
+            device=self.gpu_device
+        )
+        preprocessed_tensor, seq_lengths = embedding_avg_module_gpu.preprocess(self.dummy_texts)
+        avg_out: torch.Tensor = embedding_avg_module_gpu(preprocessed_tensor, seq_lengths)
+        self.assertEqual(str(avg_out.device), self.gpu_device)
+
+
     def test_forward_lstm_one_hot(self):
         LSTM_HIDDEN_DIM = 16
         BATCH_SIZE = len(self.dummy_texts)
@@ -196,6 +209,18 @@ class TestCharEmbeddingModule(unittest.TestCase):
         )
         # assert hidden state randomness (have many unique values)
         self.assertTrue(torch.unique(lstm_out).shape[0] >= 2)
+
+        # GPU test
+        embedding_dist_module_gpu = CharEmbeddingModule(
+            use_embedding=True,
+            aggregation_method=AggregatorMethod.LSTM,
+            char_embedding_dim=EMBEDDING_DIM,
+            lstm_hidden_dim=LSTM_HIDDEN_DIM,
+            device=self.gpu_device
+        )
+        preprocessed_tensor, seq_lengths = embedding_dist_module_gpu.preprocess(self.dummy_texts)
+        lstm_out: torch.Tensor = embedding_dist_module_gpu(preprocessed_tensor, seq_lengths)
+        self.assertEqual(str(lstm_out.device), self.gpu_device)
 
     def test_forward_bilstm_one_hot(self):
         LSTM_HIDDEN_DIM = 16

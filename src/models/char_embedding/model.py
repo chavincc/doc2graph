@@ -75,6 +75,8 @@ class CharEmbeddingModule(nn.Module):
             self.output_dim = self.input_dim - (1 if not self.use_embedding else 0)
         else:
             raise ValueError("Invalid aggregation_method. Choose value from AggregatorMethod enum.")
+        
+        self.to(self.device)
 
     def __repr__(self):
         repr_string = "CharEmbeddingModule(\n"
@@ -185,6 +187,7 @@ class CharEmbeddingModule(nn.Module):
             # create mask to exclude padding from averaging
             batch_size, padded_seq_length, num_features = tensor.shape
             mask = torch.arange(padded_seq_length).unsqueeze(0).expand(batch_size, padded_seq_length) < seq_lengths.unsqueeze(1)
+            mask = mask.to(self.device)
 
             # apply mask and get masked mean
             masked_tensor = tensor*mask.unsqueeze(-1)
