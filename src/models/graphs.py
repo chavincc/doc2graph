@@ -77,6 +77,7 @@ class SetModel():
                 lstm_hidden_dim=self.cfg_model.lstm_hidden_dim,
                 num_lstm_layer=self.cfg_model.num_lstm_layer,
                 max_seq_length=self.cfg_model.max_seq_length,
+                use_baseline_only=self.cfg_model.use_baseline_only,
                 doProject=self.cfg_model.doProject
             )
         else:
@@ -229,23 +230,28 @@ class E2ECharEmbed(nn.Module):
         lstm_hidden_dim: int,
         num_lstm_layer: int,
         max_seq_length: int,
+        use_baseline_only: bool,
         doProject: bool =True,
     ):
         super().__init__()
 
-        # char embed and distribution forward
-        self.char_embedding_module = CharEmbeddingModule(
-            use_embedding=use_embedding,
-            aggregation_method=aggregation_method,
-            char_embedding_dim=char_embedding_dim,
-            lstm_hidden_dim=lstm_hidden_dim,
-            num_lstm_layer=num_lstm_layer,
-            max_seq_length=max_seq_length,
-            device=device
-        )
+        self.use_baseline_only = use_baseline_only
 
-        # Project inputs into higher space
-        in_chunks = [lstm_hidden_dim] + in_chunks
+        if not self.use_baseline_only:
+            # char embed and distribution forward
+            self.char_embedding_module = CharEmbeddingModule(
+                use_embedding=use_embedding,
+                aggregation_method=aggregation_method,
+                char_embedding_dim=char_embedding_dim,
+                lstm_hidden_dim=lstm_hidden_dim,
+                num_lstm_layer=num_lstm_layer,
+                max_seq_length=max_seq_length,
+                device=device
+            )
+
+            # Project inputs into higher space
+            in_chunks = [lstm_hidden_dim] + in_chunks
+
         self.projector = InputProjector(in_chunks, out_chunks, device, doProject)
 
         # Perform message passing
@@ -267,15 +273,16 @@ class E2ECharEmbed(nn.Module):
         h: torch.Tensor,
         texts: List[str], # dimension = [g.number_of_nodes()]
     ) -> Tuple[torch.tensor, torch.tensor]: # node tensor and edge tensor
-        # char embedding
-        preprocessed_tensor, seq_lengths = self.char_embedding_module.preprocess(texts)
-        text_features: torch.Tensor = self.char_embedding_module.forward(preprocessed_tensor, seq_lengths)
+        if not self.use_baseline_only:
+            # char embedding
+            preprocessed_tensor, seq_lengths = self.char_embedding_module.preprocess(texts)
+            text_features: torch.Tensor = self.char_embedding_module.forward(preprocessed_tensor, seq_lengths)
 
-        # Combine text_features with existing node features (if any)
-        if h is not None and h.shape[1] > 0:
-            h = torch.cat((text_features, h), dim=1)
-        else:
-            h = text_features
+            # Combine text_features with existing node features (if any)
+            if h is not None and h.shape[1] > 0:
+                h = torch.cat((text_features, h), dim=1)
+            else:
+                h = text_features
 
         h = self.projector(h)
         h = self.message_passing(g,h)

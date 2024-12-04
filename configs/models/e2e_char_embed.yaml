@@ -5,11 +5,14 @@ hidden_dim: 300
 out_chunks: 300
 num_layers: 1
 doProject: True
+# Option to skip CharEmbeddingModule and train baseline only
+# This is for comparing baseline with & without CharEmbedding using the same (refactored) code
+use_baseline_only: False
 # CharEmbeddingModule config
-use_embedding: True
+use_embedding: False
 aggregation_method: "LSTM" # "AVG" | "LSTM" | "BILSTM"
 # --- CharEmbeddingModule mode-specific config
-char_embedding_dim: 16
-lstm_hidden_dim: 32
-num_lstm_layer: 2
+char_embedding_dim: 1
+lstm_hidden_dim: 64
+num_lstm_layer: 3
 max_seq_length: 34
