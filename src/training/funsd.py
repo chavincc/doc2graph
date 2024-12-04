@@ -63,7 +63,7 @@ def e2e(args):
             e = datetime.now()
             train_name = args.model + f'-{e.strftime("%Y%m%d-%H%M")}'
             models.append(train_name+'.pt')
-            stopper = EarlyStopping(model, name=train_name, metric=cfg_train.stopper_metric, patience=2000)
+            stopper = EarlyStopping(model, name=train_name, metric=cfg_train.stopper_metric, patience=cfg_train.stopper_patience)
             # writer = SummaryWriter(log_dir=RUNS)
             # convert_imgs = transforms.ToTensor()
         
@@ -162,6 +162,9 @@ def e2e(args):
 
                 # important!!! without this line the latter fold will cause CUDA out of memory !!!
                 torch.cuda.empty_cache()
+
+            # temporary 1-fold training for param tuning
+            # break
     
     else:
         ################* SKIP TRAINING ################
@@ -430,7 +433,7 @@ def e2e_char_embed(args):
             writer.close()
 
             # temporary 1-fold training for param tuning
-            break
+            # break
     
     else:
         ################* SKIP TRAINING ################
