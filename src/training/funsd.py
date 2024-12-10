@@ -13,6 +13,7 @@ from statistics import mean
 import numpy as np
 from PIL import Image
 import gc
+import uuid
 
 from src.data.dataloader import Document2Graph
 from src.paths import *
@@ -329,7 +330,12 @@ def e2e_char_embed(args):
             model = sm.get_model(data.node_num_classes, data.edge_num_classes, data.get_chunks())
             optimizer = torch.optim.AdamW(model.parameters(), lr=float(cfg_train.lr), weight_decay=float(cfg_train.weight_decay))
             e = datetime.now()
-            train_name = args.model + f'-{e.strftime("%Y%m%d-%H%M")}'
+
+            # use uuid to simply prevent train_name collision
+            full_uuid = uuid.uuid4()
+            truncated_uuid = str(full_uuid).replace("-", "")[:6]
+            train_name = args.model + f'-{e.strftime("%Y%m%d-%H%M")}-{truncated_uuid}'
+
             models.append(train_name+'.pt')
             stopper = EarlyStopping(model, name=train_name, metric=cfg_train.stopper_metric, patience=cfg_train.stopper_patience)
 
