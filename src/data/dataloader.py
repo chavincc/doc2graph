@@ -39,7 +39,7 @@ class Document2Graph(data.Dataset):
         self.COLORS = {'invoice_info': (150, 75, 0), 'receiver':(0,100,0), 'other':(128, 128, 128), 'supplier': (255, 0, 255), 'positions':(255,140,0), 'total':(0, 255, 255)}
 
         # get graphs
-        self.graphs, self.node_labels, self.edge_labels, self.paths, self.texts = self.__docs2graphs()
+        self.graphs, self.node_labels, self.edge_labels, self.paths, self.texts, self.boxes = self.__docs2graphs()
         
         # LABELS to numeric value
         # NODES
@@ -77,15 +77,15 @@ class Document2Graph(data.Dataset):
         """
         return len(self.graphs)
     
-    def __docs2graphs(self) -> Tuple[list, list, list, list, list]:
+    def __docs2graphs(self) -> Tuple[list, list, list, list, list, list]:
         """It uses GraphBuilder and FeaturesBuilder objects to get graphs (and lables, if any) from source data.
 
         Returns:
-            tuple (lists): DGLGraphs, nodes and edges label names, paths per each file
+            tuple (lists): DGLGraphs, nodes and edges label names, paths per each file, texts and boxes of each file
         """
         graphs, node_labels, edge_labels, features = self.GB.get_graph(self.src_path, self.src_data)
         self.feature_chunks, self.num_mods = self.FB.add_features(graphs, features)
-        return graphs, node_labels, edge_labels, features['paths'], features['texts']
+        return graphs, node_labels, edge_labels, features['paths'], features['texts'], features['boxs']
     
     def label2class(self, label : str, node=True) -> int:
         """ Transform a label (str) into its class number.
