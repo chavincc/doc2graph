@@ -250,7 +250,7 @@ class E2ECharEmbed(nn.Module):
             )
 
             # Project inputs into higher space
-            in_chunks = [lstm_hidden_dim] + in_chunks
+            in_chunks = [self.char_embedding_module.output_dim] + in_chunks
 
         self.projector = InputProjector(in_chunks, out_chunks, device, doProject)
 
