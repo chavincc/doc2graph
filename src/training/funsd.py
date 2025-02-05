@@ -510,6 +510,11 @@ def e2e_char_embed(args):
         all_node_preds = torch.cat(all_node_preds)
         all_node_labels = torch.cat(all_node_labels)
 
+        with open('all_node_preds.json', 'w') as f:
+            json.dump(all_node_preds.tolist(), f, indent=4)
+        with open('all_node_labels.json', 'w') as f:
+            json.dump(all_node_labels.tolist(), f, indent=4)
+
         auc = compute_auc_mc(all_edge_scores, all_edge_labels)
 
         edge_accuracy, edge_f1 = get_binary_accuracy_and_f1(all_edge_preds, all_edge_labels)
@@ -560,6 +565,7 @@ def e2e_char_embed(args):
                 'projector-output': model_cfg.out_chunks,
                 'dropout': model_cfg.dropout,
                 'lastFC': model_cfg.hidden_dim,
+                'use_baseline_only': model_cfg.use_baseline_only,
                 'use_embedding': model_cfg.use_embedding,
                 'aggregation_method': model_cfg.aggregation_method,
                 'char_embedding_dim': model_cfg.char_embedding_dim,
