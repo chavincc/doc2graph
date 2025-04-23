@@ -480,9 +480,12 @@ def e2e_char_embed(args):
         all_edge_scores = [] # for computing AUC
         all_edge_preds = []
         all_edge_labels = []
+        all_edge_src = [] # for mapping predictions to raw value
+        all_edge_dst = [] # for mapping predictions to raw value
         all_node_scores = []
         all_node_preds = []
         all_node_labels = []
+        all_node_texts = [] # for mapping predictions to raw value
         with torch.no_grad():
             for batched_graph, batched_texts in test_dataloader:
                 batched_graph = batched_graph.to(device)
@@ -499,21 +502,38 @@ def e2e_char_embed(args):
                 all_edge_scores.append(e_scores.cpu())
                 all_edge_preds.append(edge_preds.cpu())
                 all_edge_labels.append(batched_graph.edata['label'].cpu())
+                all_edge_src.append(batched_graph.edges()[0])
+                all_edge_dst.append(batched_graph.edges()[1])
                 all_node_scores.append(n_scores.cpu())
                 all_node_preds.append(node_preds.cpu())
                 all_node_labels.append(batched_graph.ndata['label'].cpu())
+                all_node_texts.append(batched_texts)
 
         all_edge_scores = torch.cat(all_edge_scores)
         all_edge_preds = torch.cat(all_edge_preds)
         all_edge_labels = torch.cat(all_edge_labels)
+        all_edge_src = torch.cat(all_edge_src)
+        all_edge_dst = torch.cat(all_edge_dst)
         all_node_scores = torch.cat(all_node_scores)
         all_node_preds = torch.cat(all_node_preds)
         all_node_labels = torch.cat(all_node_labels)
+        all_node_texts = [[text for text_list in all_node_texts for text in text_list]] # flatten :( very unreadable
 
         with open('all_node_preds.json', 'w') as f:
             json.dump(all_node_preds.tolist(), f, indent=4)
         with open('all_node_labels.json', 'w') as f:
             json.dump(all_node_labels.tolist(), f, indent=4)
+        with open('all_node_texts.json', 'w') as f:
+            json.dump(all_node_texts, f, indent=4)
+
+        with open('all_edge_preds.json', 'w') as f:
+            json.dump(all_edge_preds.tolist(), f, indent=4)
+        with open('all_edge_labels.json', 'w') as f:
+            json.dump(all_edge_labels.tolist(), f, indent=4)
+
+        with open('all_edge_pair.txt', 'w') as f:
+            for src, dst in zip(all_edge_src.tolist(), all_edge_dst.tolist()):
+                f.write(f"{src} {dst}\n")
 
         auc = compute_auc_mc(all_edge_scores, all_edge_labels)
 
