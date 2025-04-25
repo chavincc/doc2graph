@@ -6,6 +6,7 @@ import torchvision
 from tqdm import tqdm
 from PIL import Image, ImageDraw
 import torchvision.transforms.functional as tvF
+from transformers import BertTokenizer, BertModel
 
 from src.paths import CHECKPOINTS
 from src.models.unet import Unet
@@ -27,12 +28,19 @@ class FeatureBuilder():
         self.add_embs = self.cfg_preprocessing.FEATURES.add_embs
         self.add_hist = self.cfg_preprocessing.FEATURES.add_hist
         self.add_visual = self.cfg_preprocessing.FEATURES.add_visual
+        self.add_mbert = self.cfg_preprocessing.FEATURES.add_mbert
         self.add_eweights = self.cfg_preprocessing.FEATURES.add_eweights
         self.add_fudge = self.cfg_preprocessing.FEATURES.add_fudge
         self.num_polar_bins = self.cfg_preprocessing.FEATURES.num_polar_bins
 
         if self.add_embs:
             self.text_embedder = spacy.load('en_core_web_lg')
+
+        if self.add_mbert:
+            self.mbert_tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased')
+            self.mbert_model = BertModel.from_pretrained('bert-base-multilingual-cased')
+            self.mbert_model.eval()
+            self.mbert_model.to(self.device)
 
         if self.add_visual:
             self.visual_embedder = Unet(encoder_name="mobilenet_v2", encoder_weights=None, in_channels=1, classes=4)
@@ -94,6 +102,27 @@ class FeatureBuilder():
                 # VISUAL FEATURES (RESNET-IMAGENET)
                 [feats[idx].extend(torch.flatten(h[idx]).tolist()) for idx, _ in enumerate(feats)]
                 chunks.append(len(torch.flatten(h[0]).tolist()))
+
+            if self.add_mbert:                
+                texts = features['texts'][id]
+                inputs = self.mbert_tokenizer(
+                    texts,
+                    return_tensors='pt',
+                    truncation=True,
+                    max_length=64,
+                    padding='max_length'
+                )
+                # move inputs to GPU if available
+                inputs = {k: v.to(self.device) for k, v in inputs.items()}
+
+                with torch.no_grad():
+                    outputs = self.mbert_model(**inputs)
+                cls_embeddings = outputs.last_hidden_state[:, 0, :].cpu() # move back to cpu
+
+                for idx, cls_embed in enumerate(cls_embeddings):
+                    feats[idx].extend(cls_embed.tolist())
+
+                chunks.append(cls_embeddings.shape[1])
         
             if self.add_eweights:
                 u, v = g.edges()
@@ -160,6 +189,6 @@ class FeatureBuilder():
         return chunks, len(chunks)
     
     def get_info(self):
-        print(f"-> textual feats: {self.add_embs}\n-> visual feats: {self.add_visual}\n-> edge feats: {self.add_eweights}")
+        print(f"-> textual feats: {self.add_embs}\n-> visual feats: {self.add_visual}\n-> mbert feats: {self.add_mbert}\n-> edge feats: {self.add_eweights}")
 
     

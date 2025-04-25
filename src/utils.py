@@ -53,6 +53,7 @@ def set_preprocessing(args: ArgumentParser) -> None:
     cfg_preprocessing['FEATURES']['add_embs'] = args.add_embs
     cfg_preprocessing['FEATURES']['add_hist'] = args.add_hist
     cfg_preprocessing['FEATURES']['add_visual'] = args.add_visual
+    cfg_preprocessing['FEATURES']['add_mbert'] = args.add_mbert
     cfg_preprocessing['FEATURES']['add_eweights'] = args.add_eweights
     cfg_preprocessing['FEATURES']['num_polar_bins'] = args.num_polar_bins
     cfg_preprocessing['LOADER']['src_data'] = args.src_data
