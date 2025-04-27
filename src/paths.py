@@ -29,3 +29,7 @@ FUNSD_TEST = DATA / 'FUNSD' / 'testing_data'
 # PAU
 PAU_TRAIN = DATA / 'PAU' / 'train'
 PAU_TEST = DATA / 'PAU' / 'test'
+
+# BILLS
+BILLS_TRAIN = DATA / 'BILLS' / 'training_data'
+BILLS_TEST = DATA / 'BILLS' / 'testing_data'

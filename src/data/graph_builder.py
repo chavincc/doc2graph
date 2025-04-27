@@ -41,6 +41,8 @@ class GraphBuilder():
             return self.__fromFUNSD(src_path)
         elif src_data == 'PAU':
             return self.__fromPAU(src_path)
+        if src_data == 'BILLS':
+            return self.__fromBILLS(src_path)
         elif src_data == 'CUSTOM':
             if self.data_type == 'img':
                 return self.__fromIMG(src_path)
@@ -310,6 +312,72 @@ class GraphBuilder():
             graphs.append(g)
         
         return graphs, node_labels, edge_labels, features
+    
+    def __fromBILLS(self, src:str) -> Tuple[list, list, list, list]:
+        """Parsing BILLS annotation files (similar to FUNSD)
+
+        Args:
+            src (str) : path to where data is stored
+        
+        Returns:
+            tuple (lists) : graphs, nodes and edge labels, features
+        """
+        graphs, node_labels, edge_labels = list(), list(), list()
+        features = {'paths': [], 'texts': [], 'boxs': []}
+        # justOne = random.choice(os.listdir(os.path.join(src, 'adjusted_annotations'))).split(".")[0]
+        
+        if self.node_granularity == 'gt':
+            for file in tqdm(os.listdir(os.path.join(src, 'adjusted_annotations')), desc='Creating graphs - GT'):
+            
+                img_name = f'{file.split(".")[0]}.jpg'
+                img_path = os.path.join(src, 'images', img_name)
+                features['paths'].append(img_path)
+
+                with open(os.path.join(src, 'adjusted_annotations', file), 'r') as f:
+                    form = json.load(f)['form']
+
+                # getting infos
+                boxs, texts, ids, nl = list(), list(), list(), list()
+                pair_labels = list()
+
+                for elem in form:
+                    boxs.append(elem['box'])
+                    texts.append(elem['text'])
+                    nl.append(elem['label'])
+                    ids.append(elem['id'])
+                    [pair_labels.append(pair) for pair in elem['linking']]
+                
+                for p, pair in enumerate(pair_labels):
+                    pair_labels[p] = [ids.index(pair[0]), ids.index(pair[1])]
+                
+                node_labels.append(nl)
+                features['texts'].append(texts)
+                features['boxs'].append(boxs)
+                
+                # getting edges
+                if self.edge_type == 'fully':
+                    u, v = self.fully_connected(range(len(boxs)))
+                elif self.edge_type == 'knn': 
+                    u,v = self.knn_connection(Image.open(img_path).size, boxs)
+                else:
+                    raise Exception('GraphBuilder exception: Other edge types still under development.')
+                
+                el = list()
+                for e in zip(u, v):
+                    edge = [e[0], e[1]]
+                    if edge in pair_labels: el.append('pair')
+                    else: el.append('none')
+                edge_labels.append(el)
+
+                # creating graph
+                g = dgl.graph((torch.tensor(u), torch.tensor(v)), num_nodes=len(boxs), idtype=torch.int32)
+                graphs.append(g)
+
+        else:
+            raise Exception('GraphBuilder Exception: only \'gt\' available for BILLS.')
+
+        return graphs, node_labels, edge_labels, features
+
 
     def __fromFUNSD(self, src : str) -> Tuple[list, list, list, list]:
         """Parsing FUNSD annotation files
