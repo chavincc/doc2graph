@@ -93,9 +93,19 @@ class FeatureBuilder():
             # https://pytorch.org/vision/stable/generated/torchvision.ops.roi_align.html?highlight=roi
             if self.add_visual:
                 img = Image.open(features['paths'][id])
+                # ensure the gray image
+                if img.mode != 'L':
+                    img = img.convert('L')
+                # resize image and get scale factor
+                img, scale = resize_max_dim(img, max_dim=1000)
+                # scale the box to match scaled image
+                scaled_boxes = []
+                for box in features['boxs'][id]:
+                    scaled_box = [coord*scale for coord in box]
+                    scaled_boxes.append(torch.Tensor(scaled_box))
+                
                 visual_emb = self.visual_embedder(tvF.to_tensor(img).unsqueeze_(0).to(self.device)) # output [batch, channels, dim1, dim2]
-                bboxs = [torch.Tensor(b) for b in features['boxs'][id]]
-                bboxs = [torch.stack(bboxs, dim=0).to(self.device)]
+                bboxs = [torch.stack(scaled_boxes, dim=0).to(self.device)]
                 h = [torchvision.ops.roi_align(input=ve, boxes=bboxs, spatial_scale=1/ min(size[1] / ve.shape[2] , size[0] / ve.shape[3]), output_size=1) for ve in visual_emb[1:]]
                 h = torch.cat(h, dim=1)
 
@@ -192,3 +202,13 @@ class FeatureBuilder():
         print(f"-> textual feats: {self.add_embs}\n-> visual feats: {self.add_visual}\n-> mbert feats: {self.add_mbert}\n-> edge feats: {self.add_eweights}")
 
     
+def resize_max_dim(img: Image.Image, max_dim: int = 1000) -> Tuple[Image.Image, float]:
+    """Resize an image so that the largest side is `max_dim`, keeping aspect ratio.
+    Returns the resized image and the scale factor."""
+    w, h = img.size
+    if max(w, h) <= max_dim:
+        return img, 1.0  # no resizing needed
+    scale = max_dim / max(w, h)
+    new_w = int(w * scale)
+    new_h = int(h * scale)
+    return img.resize((new_w, new_h), Image.Resampling.LANCZOS), scale
