@@ -80,6 +80,26 @@ class SetModel():
                 use_baseline_only=self.cfg_model.use_baseline_only,
                 doProject=self.cfg_model.doProject
             )
+        elif self.name == 'E2E_CHAR_EMBED_PAIRWISE':
+            edge_pred_features = int((math.log2(get_config('preprocessing').FEATURES.num_polar_bins) + nodes)*2)
+            m = E2ECharEmbed_Pairwise(
+                node_classes=nodes,
+                edge_classes=edges,
+                dropout=self.cfg_model.dropout,
+                in_chunks=chunks,
+                out_chunks=self.cfg_model.out_chunks,
+                hidden_dim=self.cfg_model.hidden_dim,
+                device=self.device,
+                edge_pred_features=edge_pred_features,
+                use_embedding=self.cfg_model.use_embedding,
+                aggregation_method=AggregatorMethod[self.cfg_model.aggregation_method],
+                char_embedding_dim=self.cfg_model.char_embedding_dim,
+                lstm_hidden_dim=self.cfg_model.lstm_hidden_dim,
+                num_lstm_layer=self.cfg_model.num_lstm_layer,
+                max_seq_length=self.cfg_model.max_seq_length,
+                use_baseline_only=self.cfg_model.use_baseline_only,
+                doProject=self.cfg_model.doProject
+            )
         else:
             raise Exception(f"Error! Model {self.name} do not exists.")
         
@@ -289,6 +309,90 @@ class E2ECharEmbed(nn.Module):
         n = self.node_pred(h)
         e = self.edge_pred(g, h, n)
         return n, e
+    
+
+################
+###### E2ECharEmbed_Pairwise #####
+# for GNN ablation study
+class E2ECharEmbed_Pairwise(nn.Module):
+    def __init__(
+        self,
+        node_classes: int, 
+        edge_classes: int, 
+        dropout: float, 
+        in_chunks: List[int], 
+        out_chunks: int, 
+        hidden_dim: int, 
+        device: torch.device,
+        edge_pred_features: int,
+        use_embedding: bool,
+        aggregation_method: AggregatorMethod,
+        char_embedding_dim: int,
+        lstm_hidden_dim: int,
+        num_lstm_layer: int,
+        max_seq_length: int,
+        use_baseline_only: bool,
+        doProject: bool = True,
+    ):
+        super().__init__()
+
+        self.use_baseline_only = use_baseline_only
+
+        if not self.use_baseline_only:
+            self.char_embedding_module = CharEmbeddingModule(
+                use_embedding=use_embedding,
+                aggregation_method=aggregation_method,
+                char_embedding_dim=char_embedding_dim,
+                lstm_hidden_dim=lstm_hidden_dim,
+                num_lstm_layer=num_lstm_layer,
+                max_seq_length=max_seq_length,
+                device=device
+            )
+            in_chunks = [self.char_embedding_module.output_dim] + in_chunks
+
+        self.projector = InputProjector(in_chunks, out_chunks, device, doProject)
+
+        # No message passing (GNN) here
+
+        m_hidden = self.projector.get_out_lenght()
+
+        self.node_pred = nn.Sequential(
+            nn.Linear(m_hidden, node_classes),
+            nn.LayerNorm(node_classes)
+        )
+
+        self.edge_pred = MLPPredictor_E2E(
+            in_features=m_hidden,
+            hidden_dim=hidden_dim,
+            out_classes=edge_classes,
+            dropout=dropout,
+            edge_pred_features=edge_pred_features
+        )
+
+    def forward(
+        self,
+        g: DGLGraph,
+        h: torch.Tensor,
+        texts: List[str]
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+
+        if not self.use_baseline_only:
+            preprocessed_tensor, seq_lengths = self.char_embedding_module.preprocess(texts)
+            text_features = self.char_embedding_module(preprocessed_tensor, seq_lengths)
+
+            if h is not None and h.shape[1] > 0:
+                h = torch.cat((text_features, h), dim=1)
+            else:
+                h = text_features
+
+        h = self.projector(h)
+
+        # No message passing — go directly to predictions
+        n = self.node_pred(h)
+        e = self.edge_pred(g, h, n)
+
+        return n, e
+
 
 ################
 ##### LYRS #####

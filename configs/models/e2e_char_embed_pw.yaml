@@ -1,0 +1,18 @@
+name: E2E_CHAR_EMBED_PAIRWISE 
+# Doc2Graph NE & PE config
+dropout: 0.2
+hidden_dim: 300
+out_chunks: 300
+num_layers: 1
+doProject: True
+# Option to skip CharEmbeddingModule and train baseline only
+# This is for comparing baseline with & without CharEmbedding using the same (refactored) code
+use_baseline_only: True
+# CharEmbeddingModule config
+use_embedding: True
+aggregation_method: "BILSTM" # "AVG" | "LSTM" | "BILSTM"
+# --- CharEmbeddingModule mode-specific config
+char_embedding_dim: 32
+lstm_hidden_dim: 32
+num_lstm_layer: 3
+max_seq_length: 34
