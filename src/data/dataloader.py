@@ -53,7 +53,7 @@ class Document2Graph(data.Dataset):
         
         # EDGES
         if self.edge_labels:
-            self.edge_unique_labels = np.unique(self.edge_labels[0])
+            self.edge_unique_labels = np.unique(np.array([l for el in self.edge_labels for l in el]))
             self.edge_num_classes = len(self.edge_unique_labels)
             try:
                 # TODO to be changed
