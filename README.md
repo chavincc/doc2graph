@@ -36,22 +36,26 @@ python src/main.py -addG -addT -addE -addV --gpu 0 --weights e2e-funsd-best.pt -
 - 🔥 Added **tutorial** folder: get to know how to use Doc2Graph from the tutorial notebooks!
 
 ## Environment Setup
-Setup the initial conda environment
+Setup the initial conda environment. Note: We use `conda-forge` for `cudatoolkit` to ensure correct CUDA bindings for DGL.
 
-```
-conda create -n doc2graph python=3.9 ipython cudatoolkit=11.3 -c anaconda &&
-conda activate doc2graph &&
-cd doc2graph
+```bash
+conda create -n doc2graph python=3.9 ipython cudatoolkit=11.3 -c conda-forge -y
+conda activate doc2graph
 ```
 
-Then, install [setuptools-git-versioning](https://pypi.org/project/setuptools-git-versioning/) and doc2graph package itself. The following has been tested only on linux: for different OS installations refer directly to [PyTorch](https://pytorch.org/get-started/previous-versions/) and [DGL](https://www.dgl.ai/pages/start.html) original documentation.
+Then, install the package dependencies. The following instructions have been thoroughly tested on Linux and specifically pin versions to prevent dependency rot between PyTorch 1.11, Spacy, and Pydantic:
 
-```
-pip install torch==1.11.0+cu113 torchvision==0.12.0+cu113 torchaudio==0.11.0 --extra-index-url &&
-https://download.pytorch.org/whl/cu113 &&
-pip install dgl-cu113 dglgo -f https://data.dgl.ai/wheels/repo.html &&
-pip install setuptools-git-versioning && pip install -e . &&
-pip install https://github.com/explosion/spacy-models/releases/download/en_core_web_lg-3.3.0/en_core_web_lg-3.3.0.tar.gz
+```bash
+# 1. Install PyTorch and DGL with CUDA 11.3 support
+pip install torch==1.11.0+cu113 torchvision==0.12.0+cu113 torchaudio==0.11.0 --extra-index-url https://download.pytorch.org/whl/cu113
+pip install dgl-cu113 dglgo -f https://data.dgl.ai/wheels/repo.html
+
+# 2. Install package requirements and setup the editable module (bypassing build isolation to avoid setuptools errors)
+pip install -r requirements.txt
+pip install --no-build-isolation -e .
+
+# 3. Install SpaCy English model
+python -m spacy download en_core_web_lg
 ```
 
 Finally, create the project folder structure and download data:
