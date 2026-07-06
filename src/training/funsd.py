@@ -20,6 +20,7 @@ from src.paths import *
 from src.models.graphs import SetModel
 from src.utils import get_config
 from src.training.utils import *
+from src.training.utils import load_checkpoint_config
 from src.data.graph_builder import GraphBuilder
 from src.training.batch_loader import GraphAndRawTextDataset, graph_raw_text_collate_fn
 
@@ -337,7 +338,40 @@ def e2e_char_embed(args):
             train_name = args.model + f'-{e.strftime("%Y%m%d-%H%M")}-{truncated_uuid}'
 
             models.append(train_name+'.pt')
-            stopper = EarlyStopping(model, name=train_name, metric=cfg_train.stopper_metric, patience=cfg_train.stopper_patience)
+
+            # Build config snapshot to bundle with the checkpoint
+            config_snapshot = {
+                'model': args.model,
+                'dataset': 'FUNSD',
+                'features': {
+                    'geom': args.add_geom,
+                    'embs': args.add_embs,
+                    'visual': args.add_visual,
+                    'eweights': args.add_eweights,
+                },
+                'model_config': {
+                    'name': model_cfg.name,
+                    'dropout': model_cfg.dropout,
+                    'hidden_dim': model_cfg.hidden_dim,
+                    'out_chunks': model_cfg.out_chunks,
+                    'num_layers': model_cfg.num_layers,
+                    'doProject': model_cfg.doProject,
+                    'use_baseline_only': model_cfg.use_baseline_only,
+                    'use_embedding': model_cfg.use_embedding,
+                    'aggregation_method': model_cfg.aggregation_method,
+                    'char_embedding_dim': model_cfg.char_embedding_dim,
+                    'lstm_hidden_dim': model_cfg.lstm_hidden_dim,
+                    'num_lstm_layer': model_cfg.num_lstm_layer,
+                    'max_seq_length': model_cfg.max_seq_length,
+                },
+                'train_config': {
+                    'lr': cfg_train.lr,
+                    'weight_decay': cfg_train.weight_decay,
+                    'seed': cfg_train.seed,
+                    'batch_size': cfg_train.batch_size,
+                }
+            }
+            stopper = EarlyStopping(model, name=train_name, metric=cfg_train.stopper_metric, patience=cfg_train.stopper_patience, config_snapshot=config_snapshot)
 
             writer = SummaryWriter(log_dir=RUNS)
         
@@ -453,7 +487,12 @@ def e2e_char_embed(args):
     #? test
     test_data = Document2Graph(name='FUNSD TEST', src_path=FUNSD_TEST, device = device, output_dir=TEST_SAMPLES)
     test_data.get_info()
-    
+
+    # Auto-load companion config if available (uses first weight in list as reference)
+    if args.test and models:
+        load_checkpoint_config(models[0], model_cfg)
+        sm = SetModel(name=args.model, device=device)
+
     model = sm.get_model(test_data.node_num_classes, test_data.edge_num_classes, test_data.get_chunks())
     best_model = ''
     best_result = {}

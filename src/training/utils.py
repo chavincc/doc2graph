@@ -23,7 +23,7 @@ from src.paths import CHECKPOINTS, CONFIGS, OUTPUTS, RESULTS
 class EarlyStopping:
     """Early stop for training purposes, looking at validation loss.
     """
-    def __init__(self, model, name = '', metric = 'loss', patience=50):
+    def __init__(self, model, name = '', metric = 'loss', patience=50, config_snapshot=None):
         """Constructor.
 
         Args:
@@ -31,6 +31,7 @@ class EarlyStopping:
             name (str): name for weights.
             metric (str): set the stopper, following loss ['loss'] or accuracy ['acc'] on validation
             patience (int, optional): if validation do not improve after 'patience' iters, it stops training. Defaults to 50.
+            config_snapshot (dict, optional): config dict to save alongside the checkpoint as a companion YAML.
         """
         self.patience = patience
         self.counter = 0
@@ -38,6 +39,7 @@ class EarlyStopping:
         self.early_stop = 'improved'
         self.model = model
         self.metric = metric
+        self.config_snapshot = config_snapshot
         e = datetime.now()
         if name == '': self.name = f'{e.strftime("%Y%m%d-%H%M")}'
         else: self.name = name
@@ -91,8 +93,47 @@ class EarlyStopping:
         return self.early_stop
 
     def save_checkpoint(self) -> None:
-        '''Saves model when validation acc increase.'''
-        torch.save(self.model.state_dict(), CHECKPOINTS / f'{self.name}.pt')
+        '''Saves model when validation acc/loss improves. Also writes a companion YAML config snapshot.'''
+        checkpoint_path = CHECKPOINTS / f'{self.name}.pt'
+        torch.save(self.model.state_dict(), checkpoint_path)
+
+        if self.config_snapshot is not None:
+            config_path = CHECKPOINTS / f'{self.name}.yaml'
+            with open(config_path, 'w') as f:
+                yaml.dump(self.config_snapshot, f, default_flow_style=False, sort_keys=False)
+
+
+def load_checkpoint_config(weight_path: str, fallback_model_cfg) -> dict:
+    """Load companion YAML config snapshot for a checkpoint, with fallback to the live model config.
+
+    At test time, checks if a .yaml file exists alongside the .pt weight file.
+    If found, loads it and reconfigures the global model YAML. If not found,
+    logs a warning and uses the live config as-is (backward-compatible).
+
+    Args:
+        weight_path (str): path string to the .pt weight file (relative to CHECKPOINTS).
+        fallback_model_cfg: munch/attrdict config object loaded from the live configs/models/*.yaml.
+
+    Returns:
+        dict: the config to use (from snapshot or fallback).
+    """
+    import os
+    pt_path = CHECKPOINTS / weight_path
+    yaml_path = pt_path.with_suffix('.yaml')
+
+    if yaml_path.exists():
+        print(f'[Config] Loading companion config snapshot: {yaml_path}')
+        with open(yaml_path, 'r') as f:
+            snapshot = yaml.safe_load(f)
+        # Overwrite the live model config YAML so SetModel picks it up
+        live_cfg_path = CONFIGS / 'models' / f"{snapshot.get('model', 'e2e_char_embed')}.yaml"
+        with open(live_cfg_path, 'w') as f:
+            yaml.dump(snapshot.get('model_config', {}), f, default_flow_style=False, sort_keys=False)
+        return snapshot
+    else:
+        print(f'[Config] No companion YAML found for {weight_path}. Using live configs/models config (fallback).')
+        return None
+
 
 def save_best_results(best_params : dict, rm_logs : bool = False) -> None:
     """Save best results for cross validation.
