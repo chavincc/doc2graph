@@ -41,8 +41,8 @@ class GraphBuilder():
             return self.__fromFUNSD(src_path)
         elif src_data == 'PAU':
             return self.__fromPAU(src_path)
-        if src_data == 'BILLS':
-            return self.__fromBILLS(src_path)
+        if src_data == 'TONDFU':
+            return self.__fromTONDFU(src_path)
         elif src_data == 'CUSTOM':
             if self.data_type == 'img':
                 return self.__fromIMG(src_path)
@@ -313,8 +313,8 @@ class GraphBuilder():
         
         return graphs, node_labels, edge_labels, features
     
-    def __fromBILLS(self, src:str) -> Tuple[list, list, list, list]:
-        """Parsing BILLS annotation files (similar to FUNSD)
+    def __fromTONDFU(self, src:str) -> Tuple[list, list, list, list]:
+        """Parsing TONDFU annotation files (similar to FUNSD)
 
         Args:
             src (str) : path to where data is stored
@@ -374,7 +374,7 @@ class GraphBuilder():
                 graphs.append(g)
 
         else:
-            raise Exception('GraphBuilder Exception: only \'gt\' available for BILLS.')
+            raise Exception('GraphBuilder Exception: only \'gt\' available for TONDFU.')
 
         return graphs, node_labels, edge_labels, features
 

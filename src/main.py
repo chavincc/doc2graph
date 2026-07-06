@@ -5,7 +5,7 @@ from src.inference import inference
 from src.training.funsd import train_funsd
 from src.utils import create_folder, project_tree, set_preprocessing
 from src.training.pau import train_pau
-from src.training.bills import train_bills
+from src.training.tondfu import train_tondfu
 
 def main():
     parser = argparse.ArgumentParser(description='Training')
@@ -49,7 +49,7 @@ def main():
                         help="skip training")
     parser.add_argument('--weights', '-w', nargs='+', type=str, default=None,
                         help="provide a weights file relative path if testing")
-    parser.add_argument('--pretrained', type=str, default=None, help="(BILLS) load pretrained weight for training loop")
+    parser.add_argument('--pretrained', type=str, default=None, help="(TONDFU) load pretrained weight for training loop")
     
     # inference
     parser.add_argument('--inference', action="store_true",
@@ -76,9 +76,9 @@ def main():
             train_funsd(args)
         elif args.src_data == 'PAU':
             train_pau(args)
-        elif args.src_data == 'BILLS':
-            print('BILLS dataset starts')
-            train_bills(args)
+        elif args.src_data == 'TONDFU':
+            print('TONDFU dataset starts')
+            train_tondfu(args)
         elif args.src_data == 'CUSTOM':
             #TODO develop custom data preprocessing
             raise Exception('Main exception: "CUSTOM" source data still under development')

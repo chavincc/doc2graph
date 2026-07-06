@@ -35,7 +35,7 @@ def e2e_char_embed(args):
     model_cfg = get_config(CFGM / args.model)
 
     if not args.test:
-        data = Document2Graph(name='BILLS TRAIN', src_path=BILLS_TRAIN, device=device, output_dir=TRAIN_SAMPLES)
+        data = Document2Graph(name='TONDFU TRAIN', src_path=TONDFU_TRAIN, device=device, output_dir=TRAIN_SAMPLES)
         data.get_info()
 
         # ensure texts and graphs matched before splitting
@@ -202,7 +202,7 @@ def e2e_char_embed(args):
     print("\n### TESTING ###")
 
     #? test
-    test_data = Document2Graph(name='BILLS TEST', src_path=BILLS_TEST, device = device, output_dir=TEST_SAMPLES)
+    test_data = Document2Graph(name='TONDFU TEST', src_path=TONDFU_TEST, device = device, output_dir=TEST_SAMPLES)
     test_data.get_info()
     
     model = sm.get_model(test_data.node_num_classes, test_data.edge_num_classes, test_data.get_chunks())
@@ -367,7 +367,7 @@ def e2e_char_embed(args):
     return {'LINKS [MAX, MEAN, STD]': [best_result['edge_classes_f1'][1], mean(edges_f1), np.std(edges_f1)], 'NODES [MAX, MEAN, STD]': [best_result['node_micro_f1'], mean(nodes_micro), np.std(nodes_micro)]}
 
 
-def train_bills(args):
+def train_tondfu(args):
     if args.model == 'e2e_char_embed':
         e2e_char_embed(args)
     elif args.model == 'e2e_char_embed_pw':
