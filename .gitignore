@@ -21,3 +21,8 @@ src/models/yolov5
 src/models/checkpoints
 prova*
 inference
+
+# Analysis output files
+**/all_edge_**.json
+**/all_edge_**.txt
+**/all_node_**.json
