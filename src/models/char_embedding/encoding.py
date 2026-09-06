@@ -1,8 +1,11 @@
+import unicodedata
 from typing import Callable
 
 
 def is_alphabet(c):
-    return c.isalpha()
+    # combining marks (Mn/Mc) are how scripts like Thai spell vowels and tones,
+    # not punctuation, but str.isalpha() returns False for them
+    return c.isalpha() or unicodedata.category(c) in ('Mn', 'Mc')
 def is_digit(c):
     return c.isdigit()
 def is_symbol(c):

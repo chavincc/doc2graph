@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 import torch
 import math
+import unicodedata
 
 def polar(rect_src : list, rect_dst : list) -> Tuple[int, int]:
     """Compute distance and angle from src to dst bounding boxes (poolar coordinates considering the src as the center)
@@ -101,7 +102,9 @@ def get_histogram(contents : list) -> list:
         histogram = [0.0000, 0.0000, 0.0000, 0.0000]
         
         for symbol in token.replace(" ", ""):
-            if symbol.isalpha():
+            # combining marks (Mn/Mc) are how scripts like Thai spell vowels and
+            # tones, not punctuation, but str.isalpha() returns False for them
+            if symbol.isalpha() or unicodedata.category(symbol) in ('Mn', 'Mc'):
                 num_literals += 1
             elif symbol.isdigit():
                 num_figures += 1
