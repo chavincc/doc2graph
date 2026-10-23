@@ -56,6 +56,7 @@ def set_preprocessing(args: ArgumentParser) -> None:
     cfg_preprocessing['FEATURES']['add_mbert'] = args.add_mbert
     cfg_preprocessing['FEATURES']['add_eweights'] = args.add_eweights
     cfg_preprocessing['FEATURES']['num_polar_bins'] = args.num_polar_bins
+    cfg_preprocessing['FEATURES']['edge_features'] = getattr(args, 'edge_features', 'polar')
     cfg_preprocessing['LOADER']['src_data'] = args.src_data
     cfg_preprocessing['GRAPHS']['data_type'] = args.data_type
     cfg_preprocessing['GRAPHS']['edge_type'] = args.edge_type

@@ -11,7 +11,8 @@ from transformers import BertTokenizer, BertModel
 from src.paths import CHECKPOINTS
 from src.models.unet import Unet
 from src.data.utils import to_bin
-from src.data.utils import polar, get_histogram
+from src.data.utils import polar, get_histogram, alignment
+import numpy as np
 from src.utils import get_config
 
 class FeatureBuilder():
@@ -32,6 +33,7 @@ class FeatureBuilder():
         self.add_eweights = self.cfg_preprocessing.FEATURES.add_eweights
         self.add_fudge = self.cfg_preprocessing.FEATURES.add_fudge
         self.num_polar_bins = self.cfg_preprocessing.FEATURES.num_polar_bins
+        self.edge_features = self.cfg_preprocessing.FEATURES.get('edge_features', 'polar') # polar | align | polar+align
 
         if self.add_embs:
             self.text_embedder = spacy.load('en_core_web_lg')
@@ -149,10 +151,17 @@ class FeatureBuilder():
                     dist, angle = polar(features['boxs'][id][pair[0]], features['boxs'][id][pair[1]])
                     distances.append(dist)
                     angles.append(angle)
-                
+
                 m = max(distances)
-                polar_coordinates = to_bin(distances, angles, self.num_polar_bins)
-                g.edata['feat'] = polar_coordinates
+                edge_feats = []
+                if 'polar' in self.edge_features:
+                    edge_feats.append(to_bin(distances, angles, self.num_polar_bins))
+                if 'align' in self.edge_features:
+                    boxs = features['boxs'][id]
+                    unit = float(np.median([b[3] - b[1] for b in boxs]))  # ~ one text line
+                    edge_feats.append(torch.tensor(
+                        [alignment(boxs[s], boxs[d], unit) for s, d in zip(srcs, dsts)], dtype=torch.float32))
+                g.edata['feat'] = torch.cat(edge_feats, dim=1)
 
             else:
                 distances = ([0.0 for _ in range(g.number_of_edges())])

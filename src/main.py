@@ -37,6 +37,8 @@ def main():
                         help="choose the kind of connectivity in the graph. It can be: fully or knn.")
     parser.add_argument("--node-granularity", type=str, default='gt',
                         help="choose the granularity of nodes to be used. It can be: gt (if given), ocr (words) or yolo (entities).")
+    parser.add_argument("--edge-features", type=str, default='polar', choices=['polar', 'align', 'polar+align'],
+                        help="edge features fed to the edge predictor: quantized polar bins, continuous alignment, or both. Default polar.")
     parser.add_argument("--num-polar-bins", type=int, default=8,
                         help="number of bins into which discretize the space for edge polar features. It must be a power of 2: Default 8.")
 

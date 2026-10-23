@@ -348,6 +348,7 @@ def e2e_char_embed(args):
                     'embs': args.add_embs,
                     'visual': args.add_visual,
                     'eweights': args.add_eweights,
+                    'edge_features': args.edge_features,
                 },
                 'model_config': {
                     'name': model_cfg.name,

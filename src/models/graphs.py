@@ -9,6 +9,17 @@ from typing import List, Tuple
 from src.paths import CFGM
 from src.utils import get_config
 from src.models.char_embedding.model import CharEmbeddingModule, AggregatorMethod
+from src.data.utils import ALIGN_DIM
+
+def edge_feature_dim() -> int:
+    """ Size of g.edata['feat'], as built by FeatureBuilder for the configured edge features.
+    """
+    features = get_config('preprocessing').FEATURES
+    edge_features = features.get('edge_features', 'polar')
+    dim = 0
+    if 'polar' in edge_features: dim += int(math.log2(features.num_polar_bins) * 2)
+    if 'align' in edge_features: dim += ALIGN_DIM
+    return dim
 
 class SetModel():
     def __init__(self, name='e2e', device = 'cpu'):
@@ -57,11 +68,11 @@ class SetModel():
             m = EdgeClassifier(edges, self.cfg_model.num_layers, self.cfg_model.dropout, chunks, self.cfg_model.out_chunks, self.cfg_model.hidden_dim, self.device, self.cfg_model.doProject)
 
         elif self.name == 'E2E':
-            edge_pred_features = int((math.log2(get_config('preprocessing').FEATURES.num_polar_bins) + nodes)*2)
+            edge_pred_features = edge_feature_dim() + nodes*2
             m = E2E(nodes, edges, self.cfg_model.num_layers, self.cfg_model.dropout, chunks, self.cfg_model.out_chunks, self.cfg_model.hidden_dim, self.device,  edge_pred_features, self.cfg_model.doProject)
 
         elif self.name == 'E2E_CHAR_EMBED':
-            edge_pred_features = int((math.log2(get_config('preprocessing').FEATURES.num_polar_bins) + nodes)*2)
+            edge_pred_features = edge_feature_dim() + nodes*2
             m = E2ECharEmbed(
                 node_classes=nodes,
                 edge_classes=edges,
@@ -81,7 +92,7 @@ class SetModel():
                 doProject=self.cfg_model.doProject
             )
         elif self.name == 'E2E_CHAR_EMBED_PAIRWISE':
-            edge_pred_features = int((math.log2(get_config('preprocessing').FEATURES.num_polar_bins) + nodes)*2)
+            edge_pred_features = edge_feature_dim() + nodes*2
             m = E2ECharEmbed_Pairwise(
                 node_classes=nodes,
                 edge_classes=edges,
