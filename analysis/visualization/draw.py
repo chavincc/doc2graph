@@ -11,12 +11,16 @@ def draw_results(
     u: torch.Tensor,
     v: torch.Tensor,
     ellipse_radius: int = 4,
-    ellipse_class_shifting: int = 6
+    ellipse_class_shifting: int = 6,
+    line_color: str = 'violet',
+    line_width: int = 3,
+    draw_boxes: bool = True
 ):
     draw = ImageDraw.Draw(img)
 
-    for box in boxes:
-        draw.rectangle(box, outline='blue', width=3)
+    if draw_boxes:
+        for box in boxes:
+            draw.rectangle(box, outline='blue', width=3)
     
     if links:
          for _, idx in enumerate(links):
@@ -27,7 +31,7 @@ def draw_results(
             value_center = (value_center[0] - ellipse_class_shifting, value_center[1])
 
             # draw predicted edge
-            draw.line((key_center, value_center), fill='violet', width=3)
+            draw.line((key_center, value_center), fill=line_color, width=line_width)
             # draw key indicator ellipse
             draw.ellipse(
                 [
