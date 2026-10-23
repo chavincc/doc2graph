@@ -44,8 +44,8 @@ def e2e_char_embed(args):
         assert data.graphs[0].number_of_nodes() == len(data.texts[0])
         assert data.graphs[-1].number_of_nodes() == len(data.texts[-1])
 
-        # TODO: change fold number !!
-        kf = KFold(n_splits=5, shuffle=True, random_state=cfg_train.seed)
+        # 3-fold CV as in the paper (10 train / 5 val documents per fold)
+        kf = KFold(n_splits=3, shuffle=True, random_state=cfg_train.seed)
         kf_split_fold = kf.split(data.graphs)
         
         models = []
@@ -223,9 +223,6 @@ def e2e_char_embed(args):
 
             # close writer
             writer.close()
-
-            # temporary 1-fold training for param tuning
-            break
 
     else:
         ################* SKIP TRAINING ################
